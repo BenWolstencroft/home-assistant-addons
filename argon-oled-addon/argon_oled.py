@@ -366,55 +366,52 @@ class ArgonOLED:
         
         if not ha_url:
             # If we can't get the URL, display an error message
-            self.draw_header(draw, "QR Code")
             draw.text((10, 25), "No URL", font=self.font_small, fill=255)
             draw.text((10, 38), "Available", font=self.font_small, fill=255)
             return
         
         try:
-            # Generate QR code
+            # Generate QR code using a simpler approach
             qr = qrcode.QRCode(
                 version=1,  # Smallest version
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=1,
+                box_size=2,
                 border=1,
             )
             qr.add_data(ha_url)
             qr.make(fit=True)
             
-            # Create QR code image
-            qr_img = qr.make_image(fill_color="white", back_color="black")
+            # Get the QR code matrix
+            matrix = qr.get_matrix()
             
-            # Convert to 1-bit and resize to fit screen (leaving space for header)
-            qr_img = qr_img.convert('1')
+            # Calculate size and position
+            module_count = len(matrix)
+            box_size = 2
+            qr_size = module_count * box_size
             
-            # Calculate size to fit (max 50x50 to leave room for header and text)
-            max_qr_size = 50
-            qr_img.thumbnail((max_qr_size, max_qr_size), Image.Resampling.NEAREST)
+            # Center the QR code (use full screen height now)
+            x_offset = (SCREEN_WIDTH - qr_size) // 2
+            y_offset = (SCREEN_HEIGHT - qr_size) // 2
             
-            # Header
-            self.draw_header(draw, "Home Assistant")
-            
-            # Center the QR code
-            qr_width, qr_height = qr_img.size
-            x = (SCREEN_WIDTH - qr_width) // 2
-            y = 16 + ((SCREEN_HEIGHT - 16 - qr_height) // 2) - 2  # Center in remaining space
-            
-            # Paste QR code
-            if hasattr(draw, '_image'):
-                draw._image.paste(qr_img, (x, y))
-            
-            # Add small text below QR code (if there's space)
-            # Truncate URL if too long
-            url_display = ha_url
-            if len(url_display) > 20:
-                url_display = url_display[:20] + "..."
+            # Draw QR code manually pixel by pixel
+            for row in range(module_count):
+                for col in range(module_count):
+                    if matrix[row][col]:
+                        # Draw a filled box for each black module
+                        x1 = x_offset + col * box_size
+                        y1 = y_offset + row * box_size
+                        x2 = x1 + box_size - 1
+                        y2 = y1 + box_size - 1
+                        draw.rectangle((x1, y1, x2, y2), fill=255)
             
         except Exception as e:
             print(f"Error generating QR code: {e}")
+            import traceback
+            traceback.print_exc()
             self.draw_header(draw, "QR Code")
             draw.text((10, 25), "QR Error", font=self.font_small, fill=255)
-            draw.text((10, 38), str(e)[:15], font=self.font_small, fill=255)
+            error_msg = str(e)[:15] if len(str(e)) > 0 else "Unknown"
+            draw.text((10, 38), error_msg, font=self.font_small, fill=255)
     
     def display_screen(self, screen_name):
         """Display a specific screen"""

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2025-11-19
+
+### Changed
+- QR code screen now uses full display area without header for maximum size
+- Improved QR code drawing using direct matrix rendering for better compatibility
+
+### Fixed
+- Resolved PIL.image compatibility issues with QR code generation
+
 ## [1.4.0] - 2025-11-19
 
 ### Added
