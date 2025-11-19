@@ -73,6 +73,34 @@ class ArgonOLED:
             self.font_medium = ImageFont.load_default()
             self.font_large = ImageFont.load_default()
         
+        # Try to load logo image
+        self.logo_image = None
+        logo_paths = [
+            '/data/logo.png',
+            '/data/logo.jpg',
+            '/data/logo.bmp',
+            '/config/argon_logo.png',
+            '/config/argon_logo.jpg',
+        ]
+        
+        for logo_path in logo_paths:
+            try:
+                if os.path.exists(logo_path):
+                    img = Image.open(logo_path)
+                    # Convert to monochrome
+                    img = img.convert('1')
+                    # Resize to fit screen (max 128x64)
+                    img.thumbnail((SCREEN_WIDTH, SCREEN_HEIGHT), Image.Resampling.LANCZOS)
+                    self.logo_image = img
+                    print(f"Loaded logo image from: {logo_path}")
+                    break
+            except Exception as e:
+                print(f"Could not load logo from {logo_path}: {e}")
+        
+        if not self.logo_image:
+            print("No logo image found, using text-based logo")
+            print("Tip: Place logo.png in /data/ or /config/ directory")
+        
         # Initialize buttons
         self.setup_buttons()
     
@@ -156,14 +184,50 @@ class ArgonOLED:
         except:
             return "No Network"
     
+    def draw_header(self, draw, text, icon=""):
+        """Draw inverted header with optional icon"""
+        draw.rectangle((0, 0, 127, 14), fill=255)
+        full_text = f"{icon} {text}" if icon else text
+        draw.text((5, 2), full_text, font=self.font_medium, fill=0)
+    
+    def draw_progress_bar(self, draw, x, y, width, height, percentage, style="solid"):
+        """Draw styled progress bar"""
+        # Draw outline
+        draw.rectangle((x, y, x + width, y + height), outline=255, fill=0)
+        
+        # Calculate fill width
+        bar_width = int((percentage / 100) * width)
+        
+        # Draw fill based on style
+        if style == "solid":
+            draw.rectangle((x, y, x + bar_width, y + height), fill=255)
+        elif style == "striped":
+            for i in range(x, x + bar_width, 3):
+                draw.line((i, y, i, y + height), fill=255)
+        elif style == "dotted":
+            for i in range(x, x + bar_width, 2):
+                for j in range(y, y + height, 2):
+                    draw.point((i, j), fill=255)
+        
+        # Add warning indicator if > 80%
+        if percentage > 80:
+            draw.rectangle((x + width + 3, y, x + width + 6, y + height), fill=255)
+    
     def draw_clock(self, draw):
         """Draw clock screen"""
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%H:%M:%S")
         
-        draw.text((10, 15), date_str, font=self.font_medium, fill=255)
-        draw.text((20, 35), time_str, font=self.font_large, fill=255)
+        # Draw decorative border
+        draw.rectangle((0, 0, 127, 63), outline=255)
+        draw.rectangle((2, 2, 125, 61), outline=255)
+        
+        # Clock icon
+        draw.text((10, 10), "⏰", font=self.font_medium, fill=255)
+        
+        draw.text((10, 20), date_str, font=self.font_medium, fill=255)
+        draw.text((18, 40), time_str, font=self.font_large, fill=255)
     
     def draw_cpu(self, draw):
         """Draw CPU information"""
@@ -171,60 +235,123 @@ class ArgonOLED:
         cpu_temp = self.get_cpu_temp()
         temp_symbol = '°F' if self.temp_unit == 'F' else '°C'
         
-        draw.text((5, 5), "CPU", font=self.font_medium, fill=255)
-        draw.text((5, 25), f"Usage: {cpu_usage:.1f}%", font=self.font_small, fill=255)
-        draw.text((5, 40), f"Temp: {cpu_temp:.1f}{temp_symbol}", font=self.font_small, fill=255)
+        # Header with processor icon
+        self.draw_header(draw, "CPU", "⚡")
         
-        # Progress bar
-        bar_width = int((cpu_usage / 100) * 100)
-        draw.rectangle((10, 55, 110, 60), outline=255, fill=0)
-        draw.rectangle((10, 55, 10 + bar_width, 60), outline=255, fill=255)
+        # Stats
+        draw.text((5, 20), f"Usage: {cpu_usage:.1f}%", font=self.font_small, fill=255)
+        draw.text((5, 33), f"Temp: {cpu_temp:.1f}{temp_symbol}", font=self.font_small, fill=255)
+        
+        # Striped progress bar
+        self.draw_progress_bar(draw, 10, 48, 108, 8, cpu_usage, "striped")
     
     def draw_ram(self, draw):
         """Draw RAM information"""
         mem_pct, mem_total = self.get_memory_usage()
         
-        draw.text((5, 5), "Memory", font=self.font_medium, fill=255)
-        draw.text((5, 25), f"Usage: {mem_pct:.1f}%", font=self.font_small, fill=255)
-        draw.text((5, 40), f"Total: {mem_total:.2f} GB", font=self.font_small, fill=255)
+        # Header with memory icon
+        self.draw_header(draw, "Memory", "💾")
         
-        # Progress bar
-        bar_width = int((mem_pct / 100) * 100)
-        draw.rectangle((10, 55, 110, 60), outline=255, fill=0)
-        draw.rectangle((10, 55, 10 + bar_width, 60), outline=255, fill=255)
+        # Stats
+        draw.text((5, 20), f"Usage: {mem_pct:.1f}%", font=self.font_small, fill=255)
+        draw.text((5, 33), f"Total: {mem_total:.2f} GB", font=self.font_small, fill=255)
+        
+        # Solid progress bar
+        self.draw_progress_bar(draw, 10, 48, 108, 8, mem_pct, "solid")
     
     def draw_storage(self, draw):
         """Draw storage information"""
         disk_pct, disk_total = self.get_disk_usage()
         
-        draw.text((5, 5), "Storage", font=self.font_medium, fill=255)
-        draw.text((5, 25), f"Usage: {disk_pct:.1f}%", font=self.font_small, fill=255)
-        draw.text((5, 40), f"Total: {disk_total:.2f} GB", font=self.font_small, fill=255)
+        # Header with disk icon
+        self.draw_header(draw, "Storage", "💿")
         
-        # Progress bar
-        bar_width = int((disk_pct / 100) * 100)
-        draw.rectangle((10, 55, 110, 60), outline=255, fill=0)
-        draw.rectangle((10, 55, 10 + bar_width, 60), outline=255, fill=255)
+        # Stats
+        draw.text((5, 20), f"Usage: {disk_pct:.1f}%", font=self.font_small, fill=255)
+        draw.text((5, 33), f"Total: {disk_total:.2f} GB", font=self.font_small, fill=255)
+        
+        # Dotted progress bar
+        self.draw_progress_bar(draw, 10, 48, 108, 8, disk_pct, "dotted")
     
     def draw_temp(self, draw):
         """Draw temperature information"""
         cpu_temp = self.get_cpu_temp()
         temp_symbol = '°F' if self.temp_unit == 'F' else '°C'
         
-        draw.text((5, 5), "Temperature", font=self.font_medium, fill=255)
-        draw.text((20, 30), f"{cpu_temp:.1f}{temp_symbol}", font=self.font_large, fill=255)
+        # Header with thermometer icon
+        self.draw_header(draw, "Temperature", "🌡️")
+        
+        # Large temperature display
+        temp_text = f"{cpu_temp:.1f}{temp_symbol}"
+        draw.text((25, 28), temp_text, font=self.font_large, fill=255)
+        
+        # Visual thermometer on right side
+        therm_x = 105
+        therm_y = 20
+        therm_height = 40
+        
+        # Thermometer outline
+        draw.rectangle((therm_x, therm_y, therm_x + 8, therm_y + therm_height), outline=255)
+        draw.ellipse((therm_x - 2, therm_y + therm_height - 2, therm_x + 10, therm_y + therm_height + 10), outline=255, fill=0)
+        
+        # Fill based on temperature (assume 20-80°C range)
+        max_temp = 80 if self.temp_unit == 'C' else 176
+        min_temp = 20 if self.temp_unit == 'C' else 68
+        temp_ratio = max(0, min(1, (cpu_temp - min_temp) / (max_temp - min_temp)))
+        fill_height = int(therm_height * temp_ratio)
+        
+        if fill_height > 0:
+            draw.rectangle((therm_x + 1, therm_y + therm_height - fill_height, therm_x + 7, therm_y + therm_height), fill=255)
+        draw.ellipse((therm_x, therm_y + therm_height, therm_x + 8, therm_y + therm_height + 8), fill=255)
     
     def draw_ip(self, draw):
         """Draw IP address"""
         ip = self.get_ip_address()
         
-        draw.text((5, 5), "IP Address", font=self.font_medium, fill=255)
-        draw.text((10, 30), ip, font=self.font_medium, fill=255)
+        # Header with network icon
+        self.draw_header(draw, "Network", "🌐")
+        
+        # IP display with border
+        draw.rectangle((5, 22, 122, 50), outline=255)
+        
+        # Center the IP address
+        text_bbox = draw.textbbox((0, 0), ip, font=self.font_medium)
+        text_width = text_bbox[2] - text_bbox[0]
+        x_pos = (128 - text_width) // 2
+        
+        draw.text((x_pos, 30), ip, font=self.font_medium, fill=255)
+        
+        # Connection status indicator
+        status_text = "CONNECTED" if ip != "No Network" else "DISCONNECTED"
+        draw.text((35, 54), status_text, font=self.font_small, fill=255)
     
     def draw_logo(self, draw):
-        """Draw Argon ONE logo"""
-        draw.text((20, 20), "ARGON ONE", font=self.font_large, fill=255)
-        draw.text((15, 45), "Home Assistant", font=self.font_small, fill=255)
+        """Draw Argon ONE logo (image or text)"""
+        if self.logo_image:
+            # Display custom logo image, centered
+            img_width, img_height = self.logo_image.size
+            x = (SCREEN_WIDTH - img_width) // 2
+            y = (SCREEN_HEIGHT - img_height) // 2
+            
+            # Create a new image and paste the logo
+            # Note: draw._image is the underlying PIL Image
+            if hasattr(draw, '_image'):
+                draw._image.paste(self.logo_image, (x, y))
+        else:
+            # Text-based logo with decorative borders
+            # Decorative double border
+            draw.rectangle((0, 0, 127, 63), outline=255)
+            draw.rectangle((3, 3, 124, 60), outline=255)
+            
+            # Corner decorations
+            draw.rectangle((0, 0, 6, 6), fill=255)
+            draw.rectangle((121, 0, 127, 6), fill=255)
+            draw.rectangle((0, 57, 6, 63), fill=255)
+            draw.rectangle((121, 57, 127, 63), fill=255)
+            
+            # Logo text
+            draw.text((18, 18), "ARGON ONE", font=self.font_large, fill=255)
+            draw.text((12, 43), "Home Assistant", font=self.font_small, fill=255)
     
     def setup_buttons(self):
         """Setup GPIO buttons for Argon ONE case"""

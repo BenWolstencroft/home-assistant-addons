@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2025-11-19
+
+### Added
+- Custom logo image support on logo screen
+- Automatic image loading from `/data/` or `/config/` directories
+- Support for PNG, JPG, and BMP image formats
+- Automatic image conversion to monochrome
+- Automatic image scaling to fit 128x64 display
+- Fallback to text-based logo if no image found
+
+### Changed
+- Logo screen now displays custom image if available
+- Image is automatically centered on screen
+
+## [1.3.0] - 2025-11-19
+
+### Added
+- Inverted headers (white background, black text) for all screens
+- Screen-specific icons (⚡ CPU, 💾 RAM, 💿 Storage, 🌡️ Temp, 🌐 Network, ⏰ Clock)
+- Styled progress bars: striped (CPU), solid (RAM), dotted (Storage)
+- Visual warning indicators when usage exceeds 80%
+- Visual thermometer display on temperature screen
+- Decorative borders and frames for logo and clock screens
+- Connection status indicator on network screen
+- Centered and bordered IP address display
+
+### Changed
+- Enhanced visual contrast and information hierarchy
+- Improved layout spacing and positioning
+- More dynamic and visually interesting displays
+
 ## [1.2.1] - 2025-11-19
 
 ### Fixed
