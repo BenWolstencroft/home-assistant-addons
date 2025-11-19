@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2025-11-19
+
+### Fixed
+- IP address now correctly shows host IP instead of container IP
+- QR code URL now uses host IP address, making it accessible from network
+- Both features now query Supervisor network and Home Assistant info APIs
+
 ## [1.4.1] - 2025-11-19
 
 ### Changed

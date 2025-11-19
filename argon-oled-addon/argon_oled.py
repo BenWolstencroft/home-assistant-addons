@@ -160,7 +160,37 @@ class ArgonOLED:
             return 0, 0
     
     def get_ip_address(self):
-        """Get IP address"""
+        """Get host IP address from Supervisor API"""
+        try:
+            # Get host IP from supervisor API
+            headers = {'Authorization': f'Bearer {SUPERVISOR_TOKEN}'}
+            response = requests.get('http://supervisor/network/info', headers=headers, timeout=5)
+            if response.status_code == 200:
+                network_info = response.json()
+                data = network_info.get('data', {})
+                # Try to get the primary interface IP
+                interfaces = data.get('interfaces', [])
+                for interface in interfaces:
+                    if interface.get('primary', False):
+                        ipv4 = interface.get('ipv4', {})
+                        addresses = ipv4.get('address', [])
+                        if addresses:
+                            # Return the first address without CIDR notation
+                            ip = addresses[0].split('/')[0]
+                            return ip
+                
+                # Fallback: get any non-docker interface
+                for interface in interfaces:
+                    if not interface.get('interface', '').startswith('docker'):
+                        ipv4 = interface.get('ipv4', {})
+                        addresses = ipv4.get('address', [])
+                        if addresses:
+                            ip = addresses[0].split('/')[0]
+                            return ip
+        except Exception as e:
+            print(f"Could not get IP from Supervisor API: {e}")
+        
+        # Final fallback to socket method (will get container IP)
         try:
             import socket
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -176,17 +206,29 @@ class ArgonOLED:
         try:
             # Try to get the URL from the supervisor API
             headers = {'Authorization': f'Bearer {SUPERVISOR_TOKEN}'}
-            response = requests.get('http://supervisor/core/api/config', headers=headers, timeout=5)
+            response = requests.get('http://supervisor/core/info', headers=headers, timeout=5)
             if response.status_code == 200:
-                config = response.json()
-                external_url = config.get('external_url')
-                internal_url = config.get('internal_url')
-                # Prefer external URL if available
-                return external_url or internal_url
+                info = response.json()
+                data = info.get('data', {})
+                
+                # Try to get configured URL from homeassistant
+                ha_response = requests.get('http://supervisor/homeassistant/info', headers=headers, timeout=5)
+                if ha_response.status_code == 200:
+                    ha_info = ha_response.json()
+                    ha_data = ha_info.get('data', {})
+                    
+                    # Check for external/internal URL in the config
+                    external_url = ha_data.get('external_url')
+                    internal_url = ha_data.get('internal_url')
+                    
+                    if external_url:
+                        return external_url
+                    if internal_url:
+                        return internal_url
         except Exception as e:
             print(f"Could not get HA URL from API: {e}")
         
-        # Fallback to IP-based URL
+        # Fallback to IP-based URL using host IP
         ip = self.get_ip_address()
         if ip != "No Network":
             return f"http://{ip}:8123"
