@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2025-11-19
+
+### Fixed
+- Added gcc and build dependencies to prevent Pillow compilation errors
+- Install luma.oled with --no-deps to use system Pillow package
+- Added explicit luma.core installation to satisfy dependencies
+
 ## [1.0.1] - 2025-11-19
 
 ### Fixed

@@ -11,6 +11,9 @@ RUN apk add --no-cache \
     i2c-tools \
     bash \
     py3-pillow \
+    gcc \
+    musl-dev \
+    python3-dev \
     jpeg-dev \
     zlib-dev \
     freetype-dev \
@@ -21,10 +24,15 @@ RUN apk add --no-cache \
     tcl-dev
 
 # Install Python packages
+# Install luma.core with system Pillow, then luma.oled will use it
 RUN pip3 install --no-cache-dir \
     smbus2 \
-    luma.oled \
-    requests
+    requests \
+    cbor2 \
+    luma.core==2.4.2 --no-deps
+
+# Install luma.oled without dependencies (to avoid Pillow reinstall)
+RUN pip3 install --no-cache-dir luma.oled --no-deps
 
 # Copy data
 COPY run.sh /
