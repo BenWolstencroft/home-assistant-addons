@@ -1,5 +1,5 @@
 name: Argon ONE OLED Display
-version: 1.3.6
+version: 1.4.0
 slug: argon_one_oled_display
 description: Display system information on Argon ONE OLED screen
 url: https://github.com/yourusername/argon-oled-ha-addon
@@ -43,7 +43,7 @@ devices:
 options:
   temp_unit: C
   switch_duration: 30
-  screen_list: "logo clock cpu storage ram temp ip"
+  screen_list: "logo clock cpu storage ram temp ip qr"
 schema:
   temp_unit: list(C|F)
   switch_duration: int(5,300)

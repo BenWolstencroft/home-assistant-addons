@@ -14,6 +14,7 @@ from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import Image, ImageDraw, ImageFont
+import qrcode
 
 try:
     import smbus2
@@ -169,6 +170,28 @@ class ArgonOLED:
             return ip
         except:
             return "No Network"
+    
+    def get_ha_url(self):
+        """Get Home Assistant URL"""
+        try:
+            # Try to get the URL from the supervisor API
+            headers = {'Authorization': f'Bearer {SUPERVISOR_TOKEN}'}
+            response = requests.get('http://supervisor/core/api/config', headers=headers, timeout=5)
+            if response.status_code == 200:
+                config = response.json()
+                external_url = config.get('external_url')
+                internal_url = config.get('internal_url')
+                # Prefer external URL if available
+                return external_url or internal_url
+        except Exception as e:
+            print(f"Could not get HA URL from API: {e}")
+        
+        # Fallback to IP-based URL
+        ip = self.get_ip_address()
+        if ip != "No Network":
+            return f"http://{ip}:8123"
+        
+        return None
     
     def draw_header(self, draw, text, icon=""):
         """Draw inverted header with optional icon"""
@@ -337,6 +360,62 @@ class ArgonOLED:
             draw.text((18, 18), "ARGON ONE", font=self.font_large, fill=255)
             draw.text((12, 43), "Home Assistant", font=self.font_small, fill=255)
     
+    def draw_qr(self, draw):
+        """Draw QR code for Home Assistant URL"""
+        ha_url = self.get_ha_url()
+        
+        if not ha_url:
+            # If we can't get the URL, display an error message
+            self.draw_header(draw, "QR Code")
+            draw.text((10, 25), "No URL", font=self.font_small, fill=255)
+            draw.text((10, 38), "Available", font=self.font_small, fill=255)
+            return
+        
+        try:
+            # Generate QR code
+            qr = qrcode.QRCode(
+                version=1,  # Smallest version
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=1,
+                border=1,
+            )
+            qr.add_data(ha_url)
+            qr.make(fit=True)
+            
+            # Create QR code image
+            qr_img = qr.make_image(fill_color="white", back_color="black")
+            
+            # Convert to 1-bit and resize to fit screen (leaving space for header)
+            qr_img = qr_img.convert('1')
+            
+            # Calculate size to fit (max 50x50 to leave room for header and text)
+            max_qr_size = 50
+            qr_img.thumbnail((max_qr_size, max_qr_size), Image.Resampling.NEAREST)
+            
+            # Header
+            self.draw_header(draw, "Home Assistant")
+            
+            # Center the QR code
+            qr_width, qr_height = qr_img.size
+            x = (SCREEN_WIDTH - qr_width) // 2
+            y = 16 + ((SCREEN_HEIGHT - 16 - qr_height) // 2) - 2  # Center in remaining space
+            
+            # Paste QR code
+            if hasattr(draw, '_image'):
+                draw._image.paste(qr_img, (x, y))
+            
+            # Add small text below QR code (if there's space)
+            # Truncate URL if too long
+            url_display = ha_url
+            if len(url_display) > 20:
+                url_display = url_display[:20] + "..."
+            
+        except Exception as e:
+            print(f"Error generating QR code: {e}")
+            self.draw_header(draw, "QR Code")
+            draw.text((10, 25), "QR Error", font=self.font_small, fill=255)
+            draw.text((10, 38), str(e)[:15], font=self.font_small, fill=255)
+    
     def display_screen(self, screen_name):
         """Display a specific screen"""
         img = Image.new('1', (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -354,6 +433,8 @@ class ArgonOLED:
             self.draw_temp(draw)
         elif screen_name == "ip":
             self.draw_ip(draw)
+        elif screen_name == "qr":
+            self.draw_qr(draw)
         elif screen_name == "logo" or screen_name == "logo1v5":
             self.draw_logo(draw)
         else:

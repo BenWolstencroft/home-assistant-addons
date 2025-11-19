@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2025-11-19
+
+### Added
+- QR code screen displaying Home Assistant URL
+- New "qr" screen type that generates a scannable QR code
+- Auto-detection of Home Assistant URL from Supervisor API
+- Fallback to IP-based URL if API is unavailable
+- QR code added to default screen rotation
+
+### Dependencies
+- Added qrcode Python package
+
 ## [1.3.6] - 2025-11-19
 
 ### Fixed
