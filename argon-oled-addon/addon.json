@@ -1,0 +1,15 @@
+{
+  "name": "Argon ONE OLED Display",
+  "version": "1.0.0",
+  "slug": "argon_one_oled_display",
+  "description": "Display system information on Argon ONE OLED screen",
+  "url": "https://github.com/yourusername/argon-oled-ha-addon",
+  "startup": "application",
+  "boot": "auto",
+  "arch": [
+    "armhf",
+    "armv7",
+    "aarch64"
+  ],
+  "image": "ghcr.io/yourusername/argon-oled-{arch}"
+}

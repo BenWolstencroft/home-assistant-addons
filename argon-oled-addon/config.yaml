@@ -1,0 +1,50 @@
+name: Argon ONE OLED Display
+version: 1.0.0
+slug: argon_one_oled_display
+description: Display system information on Argon ONE OLED screen
+url: https://github.com/yourusername/argon-oled-ha-addon
+arch:
+  - armhf
+  - armv7
+  - aarch64
+init: false
+startup: application
+boot: auto
+homeassistant_api: false
+hassio_api: true
+devices:
+  - /dev/i2c-0
+  - /dev/i2c-1
+  - /dev/i2c-2
+  - /dev/i2c-3
+  - /dev/i2c-4
+  - /dev/i2c-5
+  - /dev/i2c-6
+  - /dev/i2c-7
+  - /dev/i2c-8
+  - /dev/i2c-9
+  - /dev/i2c-10
+  - /dev/i2c-11
+  - /dev/i2c-12
+  - /dev/i2c-13
+  - /dev/i2c-14
+  - /dev/i2c-15
+  - /dev/i2c-16
+  - /dev/i2c-17
+  - /dev/i2c-18
+  - /dev/i2c-19
+  - /dev/i2c-20
+  - /dev/i2c-21
+  - /dev/i2c-22
+  - /dev/i2c-23
+  - /dev/i2c-24
+  - /dev/i2c-25
+  - /dev/i2c-26
+options:
+  temp_unit: C
+  switch_duration: 30
+  screen_list: "logo clock cpu storage ram temp ip"
+schema:
+  temp_unit: list(C|F)
+  switch_duration: int(5,300)
+  screen_list: str
