@@ -297,12 +297,13 @@ class ArgonOLED:
         # IP display with border
         draw.rectangle((5, 22, 122, 50), outline=255)
         
-        # Center the IP address
-        text_bbox = draw.textbbox((0, 0), ip, font=self.font_medium)
-        text_width = text_bbox[2] - text_bbox[0]
-        x_pos = (128 - text_width) // 2
+        # Center the IP address (approximate centering)
+        ip_display = ip if len(ip) <= 15 else ip[:15]
+        # Approximate: each char is ~8px wide for medium font
+        text_width = len(ip_display) * 8
+        x_pos = max(10, (128 - text_width) // 2)
         
-        draw.text((x_pos, 30), ip, font=self.font_medium, fill=255)
+        draw.text((x_pos, 30), ip_display, font=self.font_medium, fill=255)
         
         # Connection status indicator
         status_text = "CONNECTED" if ip != "No Network" else "DISCONNECTED"

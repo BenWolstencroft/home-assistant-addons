@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.6] - 2025-11-19
+
+### Fixed
+- Replaced `textbbox()` with approximate text centering for older Pillow compatibility
+- IP address now displays correctly on all Pillow versions
+
 ## [1.3.4] - 2025-11-19
 
 ### Fixed
