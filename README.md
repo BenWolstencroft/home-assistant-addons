@@ -1,8 +1,8 @@
-# Argon ONE Home Assistant Add-ons
+# Home Assistant Add-ons
 
-Home Assistant add-ons for Argon ONE cases.
+A collection of custom Home Assistant add-ons for various hardware and functionality.
 
-## Add-ons
+## Available Add-ons
 
 ### [Argon ONE OLED Display](argon-oled-addon/)
 
@@ -24,9 +24,9 @@ Display system information on your Argon ONE case's OLED screen.
 1. Go to **Settings** → **Add-ons** → **Add-on Store**
 2. Click the **⋮** menu (three dots) in the top right
 3. Select **Repositories**
-4. Add: `https://github.com/yourusername/argon_oled`
+4. Add: `https://github.com/BenWolstencroft/home-assistant-addons`
 5. Click **Add**
-6. Install the add-on from the store
+6. Install the desired add-on from the store
 
 ### Method 2: Manual Installation
 
@@ -36,30 +36,26 @@ Display system information on your Argon ONE case's OLED screen.
 
 ## Requirements
 
-- Argon ONE case with OLED display
-- Raspberry Pi (any model supported by Argon ONE)
-- Home Assistant OS or Supervised installation
-- I2C enabled
+Requirements vary by add-on. See individual add-on documentation for specific requirements.
 
 ## Support
 
-- 🐛 [Report Issues](https://github.com/yourusername/argon_oled/issues)
-- 💬 [Community Forum](https://community.home-assistant.io/)
-- 📖 [Documentation](argon-oled-addon/README.md)
+- 🐛 [Report Issues](https://github.com/BenWolstencroft/home-assistant-addons/issues)
+- 💬 [Home Assistant Community](https://community.home-assistant.io/)
+- 📖 Documentation - See individual add-on folders
 
 ## Repository Structure
 
 ```
-argon_oled/
-├── argon-oled-addon/          # OLED Display Add-on
+home-assistant-addons/
+├── argon-oled-addon/          # Argon ONE OLED Display Add-on
 │   ├── argon_oled.py          # Main Python script
 │   ├── run.sh                 # Entry point
 │   ├── Dockerfile             # Docker configuration
 │   ├── config.yaml            # Add-on configuration
 │   ├── README.md              # Add-on documentation
 │   └── ...                    # Other add-on files
-├── original-script.sh         # Original Raspberry Pi OS script
-├── CONVERSION_SUMMARY.md      # Conversion details
+├── [future-addon]/            # Additional add-ons...
 └── repository.json            # Repository configuration
 ```
 
@@ -73,4 +69,4 @@ MIT License - See [LICENSE](argon-oled-addon/LICENSE) for details
 
 ## Credits
 
-Based on the Argon ONE setup scripts from [Argon40](https://www.argon40.com/).
+- Argon ONE OLED Display: Based on setup scripts from [Argon40](https://www.argon40.com/)
