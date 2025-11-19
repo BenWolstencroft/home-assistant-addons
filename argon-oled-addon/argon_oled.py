@@ -89,9 +89,6 @@ class ArgonOLED:
         if not self.logo_image:
             print("No logo image found, using text-based logo")
             print("Tip: Place logo.png in /data/ or /config/ directory")
-        
-        # Initialize buttons
-        self.setup_buttons()
     
     def get_cpu_temp(self):
         """Get CPU temperature"""

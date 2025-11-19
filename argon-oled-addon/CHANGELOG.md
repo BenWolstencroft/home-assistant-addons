@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.3] - 2025-11-19
+
+### Fixed
+- Removed leftover `setup_buttons()` call that was causing startup crash
+- Fixed run.sh script parsing error with screen_list configuration
+- Removed duplicate configuration exports in run.sh
+
 ## [1.3.2] - 2025-11-19
 
 ### Removed
