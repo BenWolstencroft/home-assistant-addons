@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2025-11-19
+
+### Fixed
+- Removed conflicting build dependencies (gcc, musl-dev) that caused package conflicts
+- Simplified Dockerfile to only include necessary runtime dependencies
+- Using system py3-pillow package to avoid compilation issues
+
 ## [1.0.2] - 2025-11-19
 
 ### Fixed
