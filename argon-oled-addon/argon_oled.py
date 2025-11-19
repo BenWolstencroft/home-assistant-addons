@@ -257,6 +257,9 @@ class ArgonOLED:
             # Start button monitoring thread
             self.button_thread = threading.Thread(target=self.monitor_buttons, daemon=True)
             self.button_thread.start()
+            print(f"Button monitoring thread started: {self.button_thread.is_alive()}")
+            print(f"Thread name: {self.button_thread.name}")
+            sys.stdout.flush()
             
         except Exception as e:
             print(f"Warning: Could not setup buttons: {e}")
@@ -266,6 +269,11 @@ class ArgonOLED:
     
     def monitor_buttons(self):
         """Monitor button presses via I2C in background thread"""
+        print("[BUTTON THREAD] Starting button monitoring thread...")
+        print(f"[BUTTON THREAD] Debug mode: {self.button_debug}")
+        print(f"[BUTTON THREAD] I2C Bus: {I2C_BUS}")
+        sys.stdout.flush()
+        
         poll_count = 0
         last_error = None
         
@@ -279,9 +287,11 @@ class ArgonOLED:
                         try:
                             button_state = self.bus.read_byte(addr)
                             
-                            # Debug output every 50 polls (5 seconds) when debug enabled
-                            if self.button_debug and poll_count % 50 == 0:
-                                print(f"[DEBUG] I2C 0x{addr:02X}: state=0x{button_state:02X} (binary={bin(button_state)}), last=0x{self.last_button_state:02X}")
+                            # Debug output every 50 polls (5 seconds)
+                            # Force output for first 10 polls to verify thread is working
+                            if (poll_count < 10) or (self.button_debug and poll_count % 50 == 0):
+                                print(f"[DEBUG Poll {poll_count}] I2C 0x{addr:02X}: state=0x{button_state:02X} (binary={bin(button_state)}), last=0x{self.last_button_state:02X}")
+                                sys.stdout.flush()
                             
                             # Detect new button press (state changed from 0)
                             if button_state != 0 and button_state != self.last_button_state:
@@ -311,7 +321,8 @@ class ArgonOLED:
     
     def handle_button_press(self, button_state):
         """Handle button press event"""
-        print(f"[BUTTON] Handling button state: 0x{button_state:02X} (binary: {bin(button_state)})")
+        print(f"\n[BUTTON EVENT] Handling button state: 0x{button_state:02X} (binary: {bin(button_state)})")
+        sys.stdout.flush()
         
         # Try different bit patterns
         # Common patterns: bit 0=0x01, bit 1=0x02, bit 2=0x04, bit 3=0x08
@@ -372,9 +383,17 @@ class ArgonOLED:
         print(f"Screen rotation: {' -> '.join(self.screen_list)}")
         print(f"Switch duration: {self.switch_duration}s")
         print(f"Temperature unit: {self.temp_unit}")
+        sys.stdout.flush()
         
+        loop_count = 0
         try:
             while True:
+                # Log heartbeat for first 10 loops
+                if loop_count < 10:
+                    print(f"[MAIN LOOP] Iteration {loop_count}")
+                    sys.stdout.flush()
+                
+                loop_count += 1
                 current_time = time.time()
                 
                 # Switch screen if needed (auto-rotation)

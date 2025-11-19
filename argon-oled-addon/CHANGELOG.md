@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.3] - 2025-11-19
+
+### Fixed
+- Added forced logging output with sys.stdout.flush() to ensure logs appear
+- Button monitoring thread now logs first 10 polls regardless of debug setting
+- Main loop logs first 10 iterations for troubleshooting
+- Added thread alive status check
+- Enhanced startup logging
+
 ## [1.1.2] - 2025-11-19
 
 ### Added
