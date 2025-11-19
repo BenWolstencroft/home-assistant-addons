@@ -4,18 +4,26 @@ FROM $BUILD_FROM
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Setup base system
+# Setup base system and build dependencies
 RUN apk add --no-cache \
     python3 \
     py3-pip \
     i2c-tools \
-    bash
+    bash \
+    py3-pillow \
+    jpeg-dev \
+    zlib-dev \
+    freetype-dev \
+    lcms2-dev \
+    openjpeg-dev \
+    tiff-dev \
+    tk-dev \
+    tcl-dev
 
 # Install Python packages
 RUN pip3 install --no-cache-dir \
     smbus2 \
     luma.oled \
-    Pillow \
     requests
 
 # Copy data
