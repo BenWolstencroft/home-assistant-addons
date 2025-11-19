@@ -21,22 +21,12 @@ try:
 except ImportError:
     SMBUS_AVAILABLE = False
 
-try:
-    import RPi.GPIO as GPIO
-    GPIO_AVAILABLE = True
-except ImportError:
-    GPIO_AVAILABLE = False
-    print("Warning: RPi.GPIO not available, button support disabled")
-
 # Configuration
 I2C_BUS = 1
 I2C_ADDRESS = 0x3C
 SCREEN_WIDTH = 128
 SCREEN_HEIGHT = 64
 SWITCH_DURATION = 30  # seconds between screens
-
-# Argon ONE OLED button pin (only GPIO 4 is available)
-BUTTON_PIN = 4   # GPIO 4 - Single button to cycle screens
 
 # Home Assistant API
 SUPERVISOR_TOKEN = os.environ.get('SUPERVISOR_TOKEN', '')
@@ -61,7 +51,6 @@ class ArgonOLED:
         self.temp_unit = temp_unit
         self.current_screen = 0
         self.last_switch = time.time()
-        self.button_pressed = False
         
         # Try to load fonts
         try:
@@ -353,90 +342,6 @@ class ArgonOLED:
             draw.text((18, 18), "ARGON ONE", font=self.font_large, fill=255)
             draw.text((12, 43), "Home Assistant", font=self.font_small, fill=255)
     
-    def setup_buttons(self):
-        """Setup GPIO buttons for Argon ONE case"""
-        self.button_debug = os.environ.get('BUTTON_DEBUG', 'false').lower() == 'true'
-        self.gpio_setup = False
-        
-        if not GPIO_AVAILABLE:
-            print("RPi.GPIO not available, buttons disabled")
-            print("Note: Button support requires GPIO access")
-            return
-        
-        try:
-            # Setup GPIO
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setwarnings(False)
-            
-            # Setup single button with pull-up resistor (button connects to ground)
-            GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-            
-            # Add event detection for button press (falling edge = button pressed)
-            GPIO.add_event_detect(BUTTON_PIN, GPIO.FALLING, callback=self.button_callback, bouncetime=300)
-            
-            self.gpio_setup = True
-            print(f"\n=== GPIO Button Setup ===")
-            print(f"Single button (Cycle screens): GPIO {BUTTON_PIN}")
-            print("Press button to cycle through screens")
-            print("=========================\n")
-            
-            if self.button_debug:
-                print("*** BUTTON DEBUG MODE ENABLED ***")
-                print(f"Monitoring GPIO pin: {BUTTON_PIN}")
-            
-            sys.stdout.flush()
-            
-        except Exception as e:
-            print(f"Warning: Could not setup GPIO buttons: {e}")
-            import traceback
-            traceback.print_exc()
-            self.gpio_setup = False
-    
-    def button_callback(self, channel):
-        """GPIO callback for button press"""
-        print(f"\n[BUTTON EVENT] GPIO {channel} pressed!")
-        sys.stdout.flush()
-        
-        # Cycle to next screen
-        self.current_screen = (self.current_screen + 1) % len(self.screen_list)
-        self.last_switch = time.time()  # Reset auto-rotation timer
-        print(f"Button: Next screen -> {self.screen_list[self.current_screen]}")
-        sys.stdout.flush()
-    
-    def handle_button_press_legacy(self, button_state):
-        """Handle button press event"""
-        print(f"\n[BUTTON EVENT] Handling button state: 0x{button_state:02X} (binary: {bin(button_state)})")
-        sys.stdout.flush()
-        
-        # Try different bit patterns
-        # Common patterns: bit 0=0x01, bit 1=0x02, bit 2=0x04, bit 3=0x08
-        if button_state & 0x01:  # Bit 0
-            print(f"[BUTTON] Bit 0 pressed (0x01)")
-        if button_state & 0x02:  # Bit 1 - Try as Next
-            print(f"[BUTTON] Bit 1 pressed (0x02) - Next screen")
-            self.current_screen = (self.current_screen + 1) % len(self.screen_list)
-            self.last_switch = time.time()
-            print(f"Button: Next screen -> {self.screen_list[self.current_screen]}")
-        if button_state & 0x04:  # Bit 2 - Try as Previous
-            print(f"[BUTTON] Bit 2 pressed (0x04) - Previous screen")
-            self.current_screen = (self.current_screen - 1) % len(self.screen_list)
-            self.last_switch = time.time()
-            print(f"Button: Previous screen -> {self.screen_list[self.current_screen]}")
-        if button_state & 0x08:  # Bit 3
-            print(f"[BUTTON] Bit 3 pressed (0x08)")
-        
-        # Also try treating the whole value as a button ID
-        if button_state not in [0x01, 0x02, 0x04, 0x08]:
-            print(f"[BUTTON] Unknown button pattern, treating as button ID: {button_state}")
-            if button_state == 0x10:  # Try 0x10 as next
-                self.current_screen = (self.current_screen + 1) % len(self.screen_list)
-                self.last_switch = time.time()
-                print(f"Button ID 0x10: Next screen -> {self.screen_list[self.current_screen]}")
-            elif button_state == 0x20:  # Try 0x20 as previous  
-                self.current_screen = (self.current_screen - 1) % len(self.screen_list)
-                self.last_switch = time.time()
-                print(f"Button ID 0x20: Previous screen -> {self.screen_list[self.current_screen]}")
-    
     def display_screen(self, screen_name):
         """Display a specific screen"""
         img = Image.new('1', (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -496,13 +401,6 @@ class ArgonOLED:
         except Exception as e:
             print(f"Error in main loop: {e}")
         finally:
-            # Cleanup GPIO
-            if self.gpio_setup and GPIO_AVAILABLE:
-                try:
-                    GPIO.cleanup()
-                    print("GPIO cleaned up")
-                except:
-                    pass
             self.device.clear()
             self.device.cleanup()
 

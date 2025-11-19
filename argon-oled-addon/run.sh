@@ -25,10 +25,10 @@ if [ ! -c /dev/i2c-1 ]; then
 fi
 
 # Export configuration as environment variables for Python script
-export TEMP_UNIT="${TEMP_UNIT}"
-export SWITCH_DURATION="${SWITCH_DURATION}"
-export SCREEN_LIST="${SCREEN_LIST}"
-export BUTTON_DEBUG="$(bashio::config 'button_debug')"
+# Export configuration
+export TEMP_UNIT="$(bashio::config 'temp_unit')"
+export SWITCH_DURATION="$(bashio::config 'switch_duration')"
+export SCREEN_LIST="$(bashio::config 'screen_list' | jq -r 'join(",")')"
 
 if [ "${BUTTON_DEBUG}" = "true" ]; then
     bashio::log.info "Button debug mode enabled"

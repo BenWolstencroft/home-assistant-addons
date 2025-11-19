@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2025-11-19
+
+### Removed
+- Button support (not working with current hardware configuration)
+- RPi.GPIO dependency
+- GPIO button monitoring code
+- button_debug configuration option
+
+### Changed
+- Simplified to automatic screen rotation only
+- Reduced dependencies and complexity
+
 ## [1.3.1] - 2025-11-19
 
 ### Added
