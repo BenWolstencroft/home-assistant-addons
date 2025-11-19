@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2025-11-19
+
+### Added
+- Home Assistant system status screen ("hastatus" or "status")
+- Displays number of available updates (supervisor, core, and addons)
+- Shows last backup date and time
+- Visual indicators for system health (OK/Action Needed)
+- Status summary showing if system is healthy or needs attention
+
 ## [1.4.2] - 2025-11-19
 
 ### Fixed

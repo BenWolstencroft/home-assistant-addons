@@ -455,6 +455,122 @@ class ArgonOLED:
             error_msg = str(e)[:15] if len(str(e)) > 0 else "Unknown"
             draw.text((10, 38), error_msg, font=self.font_small, fill=255)
     
+    def get_ha_system_status(self):
+        """Get Home Assistant system status information"""
+        status_info = {
+            'updates': 0,
+            'repairs': 0,
+            'last_backup': None,
+            'backup_state': 'Unknown'
+        }
+        
+        try:
+            headers = {'Authorization': f'Bearer {SUPERVISOR_TOKEN}'}
+            
+            # Get supervisor updates
+            try:
+                response = requests.get('http://supervisor/supervisor/info', headers=headers, timeout=5)
+                if response.status_code == 200:
+                    data = response.json().get('data', {})
+                    if not data.get('update_available', False):
+                        status_info['updates'] = 0
+                    else:
+                        status_info['updates'] = 1
+            except Exception as e:
+                print(f"Could not get supervisor updates: {e}")
+            
+            # Get core updates
+            try:
+                response = requests.get('http://supervisor/core/info', headers=headers, timeout=5)
+                if response.status_code == 200:
+                    data = response.json().get('data', {})
+                    if data.get('update_available', False):
+                        status_info['updates'] += 1
+            except Exception as e:
+                print(f"Could not get core updates: {e}")
+            
+            # Get addon updates
+            try:
+                response = requests.get('http://supervisor/addons', headers=headers, timeout=5)
+                if response.status_code == 200:
+                    data = response.json().get('data', {})
+                    addons = data.get('addons', [])
+                    for addon in addons:
+                        if addon.get('update_available', False):
+                            status_info['updates'] += 1
+            except Exception as e:
+                print(f"Could not get addon updates: {e}")
+            
+            # Get backup info
+            try:
+                response = requests.get('http://supervisor/backups', headers=headers, timeout=5)
+                if response.status_code == 200:
+                    data = response.json().get('data', {})
+                    backups = data.get('backups', [])
+                    if backups:
+                        # Sort by date and get most recent
+                        sorted_backups = sorted(backups, key=lambda x: x.get('date', ''), reverse=True)
+                        latest = sorted_backups[0]
+                        status_info['last_backup'] = latest.get('date', 'Unknown')
+                        status_info['backup_state'] = 'OK'
+                    else:
+                        status_info['backup_state'] = 'None'
+            except Exception as e:
+                print(f"Could not get backup info: {e}")
+            
+        except Exception as e:
+            print(f"Error getting HA system status: {e}")
+        
+        return status_info
+    
+    def draw_ha_status(self, draw):
+        """Draw Home Assistant system status"""
+        status = self.get_ha_system_status()
+        
+        # Header
+        self.draw_header(draw, "HA Status")
+        
+        # Updates available
+        updates_text = f"Updates: {status['updates']}"
+        draw.text((5, 20), updates_text, font=self.font_small, fill=255)
+        
+        # Update indicator
+        if status['updates'] > 0:
+            draw.rectangle((95, 20, 122, 28), outline=255, fill=255)
+            draw.text((100, 20), "!", font=self.font_small, fill=0)
+        else:
+            draw.rectangle((95, 20, 122, 28), outline=255, fill=0)
+            draw.text((100, 20), "OK", font=self.font_small, fill=255)
+        
+        # Repairs (placeholder for now, HA doesn't expose this easily via API)
+        # draw.text((5, 33), "Repairs: 0", font=self.font_small, fill=255)
+        
+        # Last backup
+        if status['last_backup']:
+            try:
+                # Parse ISO format: 2025-11-19T10:30:00.000000+00:00
+                backup_dt = datetime.fromisoformat(status['last_backup'].replace('Z', '+00:00'))
+                backup_str = backup_dt.strftime("%m/%d %H:%M")
+                draw.text((5, 33), f"Backup: {backup_str}", font=self.font_small, fill=255)
+            except:
+                draw.text((5, 33), "Backup: Unknown", font=self.font_small, fill=255)
+        else:
+            draw.text((5, 33), f"Backup: {status['backup_state']}", font=self.font_small, fill=255)
+        
+        # Backup indicator
+        if status['backup_state'] == 'OK':
+            draw.rectangle((95, 33, 122, 41), outline=255, fill=0)
+            draw.text((100, 33), "OK", font=self.font_small, fill=255)
+        else:
+            draw.rectangle((95, 33, 122, 41), outline=255, fill=255)
+            draw.text((100, 33), "!", font=self.font_small, fill=0)
+        
+        # System status summary at bottom
+        if status['updates'] == 0 and status['backup_state'] == 'OK':
+            draw.text((25, 50), "System Healthy", font=self.font_small, fill=255)
+        else:
+            draw.text((20, 50), "Action Needed", font=self.font_small, fill=255)
+    
     def display_screen(self, screen_name):
         """Display a specific screen"""
         img = Image.new('1', (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -474,6 +590,8 @@ class ArgonOLED:
             self.draw_ip(draw)
         elif screen_name == "qr":
             self.draw_qr(draw)
+        elif screen_name == "hastatus" or screen_name == "status":
+            self.draw_ha_status(draw)
         elif screen_name == "logo" or screen_name == "logo1v5":
             self.draw_logo(draw)
         else:
