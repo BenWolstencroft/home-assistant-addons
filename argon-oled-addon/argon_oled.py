@@ -16,15 +16,16 @@ from luma.oled.device import ssd1306
 from PIL import Image, ImageDraw, ImageFont
 
 try:
-    import gpiod
-    GPIO_AVAILABLE = True
+    import smbus2
+    SMBUS_AVAILABLE = True
 except ImportError:
-    GPIO_AVAILABLE = False
-    print("Warning: gpiod not available, button support disabled")
+    SMBUS_AVAILABLE = False
+    print("Warning: smbus2 not available, button support disabled")
 
 # Configuration
 I2C_BUS = 1
 I2C_ADDRESS = 0x3C
+BUTTON_I2C_ADDRESS = 0x01  # Argon ONE I2C address for buttons
 SCREEN_WIDTH = 128
 SCREEN_HEIGHT = 64
 SWITCH_DURATION = 30  # seconds between screens
@@ -218,32 +219,18 @@ class ArgonOLED:
         draw.text((15, 45), "Home Assistant", font=self.font_small, fill=255)
     
     def setup_buttons(self):
-        """Setup GPIO buttons for Argon ONE case"""
-        self.chip = None
-        self.button_lines = []
+        """Setup I2C button polling for Argon ONE case"""
+        self.bus = None
+        self.last_button_state = 0
         
-        if not GPIO_AVAILABLE:
-            print("GPIO not available, buttons disabled")
+        if not SMBUS_AVAILABLE:
+            print("SMBus not available, buttons disabled")
             return
         
         try:
-            # Argon ONE typically uses GPIO 4, 17, and 27 for buttons
-            # GPIO 4 - Up/Next button
-            # GPIO 17 - Down/Previous button  
-            # GPIO 27 - Select/Enter button
-            self.chip = gpiod.Chip('gpiochip0')
-            
-            # Request GPIO 4 for next button
-            button_next = self.chip.get_line(4)
-            button_next.request(consumer="argon-oled", type=gpiod.LINE_REQ_EV_FALLING_EDGE)
-            self.button_lines.append(('next', button_next))
-            
-            # Request GPIO 17 for previous button
-            button_prev = self.chip.get_line(17)
-            button_prev.request(consumer="argon-oled", type=gpiod.LINE_REQ_EV_FALLING_EDGE)
-            self.button_lines.append(('prev', button_prev))
-            
-            print("Button support enabled (GPIO 4=Next, GPIO 17=Previous)")
+            # Initialize I2C bus for button reading
+            self.bus = smbus2.SMBus(I2C_BUS)
+            print("Button support enabled via I2C")
             
             # Start button monitoring thread
             self.button_thread = threading.Thread(target=self.monitor_buttons, daemon=True)
@@ -251,29 +238,41 @@ class ArgonOLED:
             
         except Exception as e:
             print(f"Warning: Could not setup buttons: {e}")
-            self.chip = None
+            self.bus = None
     
     def monitor_buttons(self):
-        """Monitor button presses in background thread"""
+        """Monitor button presses via I2C in background thread"""
         while True:
             try:
-                for button_name, button_line in self.button_lines:
-                    if button_line.event_wait(nsec=100000000):  # 100ms timeout
-                        event = button_line.event_read()
-                        if event.type == gpiod.LineEvent.FALLING_EDGE:
-                            self.handle_button_press(button_name)
-                            time.sleep(0.3)  # Debounce
+                if self.bus:
+                    # Read button state from I2C (Argon ONE uses address 0x01)
+                    # Button values: 1=Power, 2=Button1, 4=Button2, 8=Button3
+                    try:
+                        button_state = self.bus.read_byte(BUTTON_I2C_ADDRESS)
+                        
+                        # Detect new button press (state changed from 0)
+                        if button_state != 0 and button_state != self.last_button_state:
+                            self.handle_button_press(button_state)
+                            self.last_button_state = button_state
+                        elif button_state == 0:
+                            self.last_button_state = 0
+                    except OSError:
+                        # I2C read failed, button might not be connected
+                        pass
+                    
+                time.sleep(0.1)  # Poll every 100ms
             except Exception as e:
                 print(f"Button monitoring error: {e}")
                 time.sleep(1)
     
-    def handle_button_press(self, button_name):
+    def handle_button_press(self, button_state):
         """Handle button press event"""
-        if button_name == 'next':
+        # Button state bits: 1=Power, 2=Next, 4=Previous, 8=Select
+        if button_state & 0x02:  # Button 1 (bit 1) - Next
             self.current_screen = (self.current_screen + 1) % len(self.screen_list)
             self.last_switch = time.time()  # Reset auto-switch timer
             print(f"Button: Next screen -> {self.screen_list[self.current_screen]}")
-        elif button_name == 'prev':
+        elif button_state & 0x04:  # Button 2 (bit 2) - Previous
             self.current_screen = (self.current_screen - 1) % len(self.screen_list)
             self.last_switch = time.time()  # Reset auto-switch timer
             print(f"Button: Previous screen -> {self.screen_list[self.current_screen]}")
@@ -329,11 +328,12 @@ class ArgonOLED:
         except Exception as e:
             print(f"Error in main loop: {e}")
         finally:
-            # Cleanup GPIO
-            if self.chip:
-                for _, line in self.button_lines:
-                    line.release()
-                self.chip.close()
+            # Cleanup I2C bus
+            if self.bus:
+                try:
+                    self.bus.close()
+                except:
+                    pass
             self.device.clear()
             self.device.cleanup()
 

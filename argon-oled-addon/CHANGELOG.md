@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2025-11-19
+
+### Fixed
+- Changed button implementation from GPIO to I2C polling
+- Buttons now correctly read from I2C address 0x01
+- Removed gpiod dependency (not needed)
+- Button polling every 100ms for responsive input
+
 ## [1.1.0] - 2025-11-19
 
 ### Added
