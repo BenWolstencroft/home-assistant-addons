@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2025-11-19
+
+### Fixed
+- Corrected to use only GPIO 4 (the only available GPIO pin)
+- Single button now cycles through all screens
+- Simplified button handling for one button operation
+
+## [1.2.0] - 2025-11-19
+
+### Changed
+- **MAJOR**: Switched from I2C to GPIO for button detection
+- Using RPi.GPIO library for button handling
+- Event-driven button detection with hardware debouncing (300ms)
+- Immediate button response via GPIO callbacks
+
+### Added
+- RPi.GPIO dependency
+- Pull-up resistors configuration for button
+- Falling edge detection for button press
+
+### Fixed
+- Buttons now work correctly on Argon ONE OLED
+- No more I2C polling errors
+
 ## [1.1.4] - 2025-11-19
 
 ### Fixed

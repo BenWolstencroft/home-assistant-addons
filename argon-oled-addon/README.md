@@ -7,10 +7,11 @@ This add-on brings the functionality of the Argon ONE OLED display to Home Assis
 ## Features
 
 - 🖥️ Display system information on Argon ONE OLED screen
-- 📊 Multiple screen views: Logo, Clock, CPU, RAM, Storage, Temperature, IP Address
+- 📊 Multiple screens: Logo, Clock, CPU, RAM, Storage, Temperature, IP
 - 🔄 Automatic screen rotation with configurable duration
 - 🌡️ Temperature display in Celsius or Fahrenheit
 - ⚡ Real-time system monitoring
+- 🔘 Physical button support (GPIO 4) to manually cycle through screens
 
 ## Supported Screens
 

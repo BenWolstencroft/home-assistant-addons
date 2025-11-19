@@ -20,15 +20,23 @@ try:
     SMBUS_AVAILABLE = True
 except ImportError:
     SMBUS_AVAILABLE = False
-    print("Warning: smbus2 not available, button support disabled")
+
+try:
+    import RPi.GPIO as GPIO
+    GPIO_AVAILABLE = True
+except ImportError:
+    GPIO_AVAILABLE = False
+    print("Warning: RPi.GPIO not available, button support disabled")
 
 # Configuration
 I2C_BUS = 1
 I2C_ADDRESS = 0x3C
-BUTTON_I2C_ADDRESS = 0x01  # Argon ONE I2C address for buttons
 SCREEN_WIDTH = 128
 SCREEN_HEIGHT = 64
 SWITCH_DURATION = 30  # seconds between screens
+
+# Argon ONE OLED button pin (only GPIO 4 is available)
+BUTTON_PIN = 4   # GPIO 4 - Single button to cycle screens
 
 # Home Assistant API
 SUPERVISOR_TOKEN = os.environ.get('SUPERVISOR_TOKEN', '')
@@ -219,132 +227,56 @@ class ArgonOLED:
         draw.text((15, 45), "Home Assistant", font=self.font_small, fill=255)
     
     def setup_buttons(self):
-        """Setup I2C button polling for Argon ONE case"""
-        self.bus = None
-        self.last_button_state = 0
+        """Setup GPIO buttons for Argon ONE case"""
         self.button_debug = os.environ.get('BUTTON_DEBUG', 'false').lower() == 'true'
+        self.gpio_setup = False
         
-        if not SMBUS_AVAILABLE:
-            print("SMBus not available, buttons disabled")
+        if not GPIO_AVAILABLE:
+            print("RPi.GPIO not available, buttons disabled")
+            print("Note: Button support requires GPIO access")
             return
         
         try:
-            # Initialize I2C bus for button reading
-            self.bus = smbus2.SMBus(I2C_BUS)
-            print(f"Button support enabled via I2C bus {I2C_BUS}")
-            sys.stdout.flush()
+            # Setup GPIO
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
             
-            # Scan for I2C devices
-            print("\n=== I2C Device Scan ===")
-            sys.stdout.flush()
-            found_devices = []
-            for addr in range(0x03, 0x78):
-                try:
-                    self.bus.read_byte(addr)
-                    found_devices.append(addr)
-                    print(f"Found I2C device at address: 0x{addr:02X}")
-                    sys.stdout.flush()
-                except:
-                    pass
+            # Setup single button with pull-up resistor (button connects to ground)
+            GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             
-            if not found_devices:
-                print("No I2C devices found (besides OLED)")
-            else:
-                print(f"Total I2C devices found: {len(found_devices)} - {', '.join([f'0x{a:02X}' for a in found_devices])}")
-            print("======================\n")
-            sys.stdout.flush()
+            # Add event detection for button press (falling edge = button pressed)
+            GPIO.add_event_detect(BUTTON_PIN, GPIO.FALLING, callback=self.button_callback, bouncetime=300)
             
-            # Store found devices for button polling
-            self.found_i2c_devices = found_devices
+            self.gpio_setup = True
+            print(f"\n=== GPIO Button Setup ===")
+            print(f"Single button (Cycle screens): GPIO {BUTTON_PIN}")
+            print("Press button to cycle through screens")
+            print("=========================\n")
             
             if self.button_debug:
                 print("*** BUTTON DEBUG MODE ENABLED ***")
-                print(f"Will monitor I2C address 0x{BUTTON_I2C_ADDRESS:02X} for button presses")
+                print(f"Monitoring GPIO pin: {BUTTON_PIN}")
             
-            # Start button monitoring thread
-            self.button_thread = threading.Thread(target=self.monitor_buttons, daemon=True)
-            self.button_thread.start()
-            print(f"Button monitoring thread started: {self.button_thread.is_alive()}")
-            print(f"Thread name: {self.button_thread.name}")
             sys.stdout.flush()
             
         except Exception as e:
-            print(f"Warning: Could not setup buttons: {e}")
+            print(f"Warning: Could not setup GPIO buttons: {e}")
             import traceback
             traceback.print_exc()
-            self.bus = None
+            self.gpio_setup = False
     
-    def monitor_buttons(self):
-        """Monitor button presses via I2C in background thread"""
-        print("[BUTTON THREAD] Starting button monitoring thread...")
-        print(f"[BUTTON THREAD] Debug mode: {self.button_debug}")
-        print(f"[BUTTON THREAD] I2C Bus: {I2C_BUS}")
+    def button_callback(self, channel):
+        """GPIO callback for button press"""
+        print(f"\n[BUTTON EVENT] GPIO {channel} pressed!")
         sys.stdout.flush()
         
-        # Use discovered I2C devices, excluding OLED (0x3C)
-        addresses_to_monitor = [addr for addr in getattr(self, 'found_i2c_devices', []) if addr != I2C_ADDRESS]
-        if not addresses_to_monitor:
-            # Fallback to common addresses if scan failed
-            addresses_to_monitor = [0x1A, 0x20, 0x21, 0x30, 0x40]
-        
-        print(f"[BUTTON THREAD] Will monitor addresses: {', '.join([f'0x{a:02X}' for a in addresses_to_monitor])}")
+        # Cycle to next screen
+        self.current_screen = (self.current_screen + 1) % len(self.screen_list)
+        self.last_switch = time.time()  # Reset auto-rotation timer
+        print(f"Button: Next screen -> {self.screen_list[self.current_screen]}")
         sys.stdout.flush()
-        
-        poll_count = 0
-        last_error = None
-        working_address = None
-        
-        while True:
-            try:
-                if self.bus:
-                    # Try addresses
-                    addresses_to_try = [working_address] if working_address else addresses_to_monitor
-                    
-                    for addr in addresses_to_try:
-                        try:
-                            button_state = self.bus.read_byte(addr)
-                            
-                            # Remember this address works
-                            if not working_address:
-                                working_address = addr
-                                print(f"[BUTTON THREAD] Found working I2C address: 0x{addr:02X}")
-                                sys.stdout.flush()
-                            
-                            # Debug output every 50 polls (5 seconds)
-                            # Force output for first 10 polls to verify thread is working
-                            if (poll_count < 10) or (self.button_debug and poll_count % 50 == 0):
-                                print(f"[DEBUG Poll {poll_count}] I2C 0x{addr:02X}: state=0x{button_state:02X} (binary={bin(button_state)}), last=0x{self.last_button_state:02X}")
-                                sys.stdout.flush()
-                            
-                            # Detect new button press (state changed from 0)
-                            if button_state != 0 and button_state != self.last_button_state:
-                                print(f"[BUTTON] Raw state detected: 0x{button_state:02X} at address 0x{addr:02X}")
-                                sys.stdout.flush()
-                                self.handle_button_press(button_state)
-                                self.last_button_state = button_state
-                            elif button_state == 0:
-                                self.last_button_state = 0
-                            
-                            break  # Successfully read, no need to try other addresses
-                            
-                        except OSError as e:
-                            # I2C read failed for this address
-                            if poll_count < 3 and str(e) != last_error:
-                                print(f"[DEBUG] Cannot read I2C address 0x{addr:02X}: {e}")
-                                sys.stdout.flush()
-                                last_error = str(e)
-                            continue
-                    
-                    poll_count += 1
-                    
-                time.sleep(0.1)  # Poll every 100ms
-            except Exception as e:
-                print(f"Button monitoring error: {e}")
-                import traceback
-                traceback.print_exc()
-                time.sleep(1)
     
-    def handle_button_press(self, button_state):
+    def handle_button_press_legacy(self, button_state):
         """Handle button press event"""
         print(f"\n[BUTTON EVENT] Handling button state: 0x{button_state:02X} (binary: {bin(button_state)})")
         sys.stdout.flush()
@@ -437,10 +369,11 @@ class ArgonOLED:
         except Exception as e:
             print(f"Error in main loop: {e}")
         finally:
-            # Cleanup I2C bus
-            if self.bus:
+            # Cleanup GPIO
+            if self.gpio_setup and GPIO_AVAILABLE:
                 try:
-                    self.bus.close()
+                    GPIO.cleanup()
+                    print("GPIO cleaned up")
                 except:
                     pass
             self.device.clear()
