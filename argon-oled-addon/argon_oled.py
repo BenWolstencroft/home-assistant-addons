@@ -8,11 +8,19 @@ import time
 import os
 import sys
 import requests
+import threading
 from datetime import datetime
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import Image, ImageDraw, ImageFont
+
+try:
+    import gpiod
+    GPIO_AVAILABLE = True
+except ImportError:
+    GPIO_AVAILABLE = False
+    print("Warning: gpiod not available, button support disabled")
 
 # Configuration
 I2C_BUS = 1
@@ -43,6 +51,8 @@ class ArgonOLED:
         self.switch_duration = switch_duration
         self.temp_unit = temp_unit
         self.current_screen = 0
+        self.last_switch = time.time()
+        self.button_pressed = False
         
         # Try to load fonts
         try:
@@ -53,6 +63,9 @@ class ArgonOLED:
             self.font_small = ImageFont.load_default()
             self.font_medium = ImageFont.load_default()
             self.font_large = ImageFont.load_default()
+        
+        # Initialize buttons
+        self.setup_buttons()
     
     def get_cpu_temp(self):
         """Get CPU temperature"""
@@ -204,6 +217,67 @@ class ArgonOLED:
         draw.text((20, 20), "ARGON ONE", font=self.font_large, fill=255)
         draw.text((15, 45), "Home Assistant", font=self.font_small, fill=255)
     
+    def setup_buttons(self):
+        """Setup GPIO buttons for Argon ONE case"""
+        self.chip = None
+        self.button_lines = []
+        
+        if not GPIO_AVAILABLE:
+            print("GPIO not available, buttons disabled")
+            return
+        
+        try:
+            # Argon ONE typically uses GPIO 4, 17, and 27 for buttons
+            # GPIO 4 - Up/Next button
+            # GPIO 17 - Down/Previous button  
+            # GPIO 27 - Select/Enter button
+            self.chip = gpiod.Chip('gpiochip0')
+            
+            # Request GPIO 4 for next button
+            button_next = self.chip.get_line(4)
+            button_next.request(consumer="argon-oled", type=gpiod.LINE_REQ_EV_FALLING_EDGE)
+            self.button_lines.append(('next', button_next))
+            
+            # Request GPIO 17 for previous button
+            button_prev = self.chip.get_line(17)
+            button_prev.request(consumer="argon-oled", type=gpiod.LINE_REQ_EV_FALLING_EDGE)
+            self.button_lines.append(('prev', button_prev))
+            
+            print("Button support enabled (GPIO 4=Next, GPIO 17=Previous)")
+            
+            # Start button monitoring thread
+            self.button_thread = threading.Thread(target=self.monitor_buttons, daemon=True)
+            self.button_thread.start()
+            
+        except Exception as e:
+            print(f"Warning: Could not setup buttons: {e}")
+            self.chip = None
+    
+    def monitor_buttons(self):
+        """Monitor button presses in background thread"""
+        while True:
+            try:
+                for button_name, button_line in self.button_lines:
+                    if button_line.event_wait(nsec=100000000):  # 100ms timeout
+                        event = button_line.event_read()
+                        if event.type == gpiod.LineEvent.FALLING_EDGE:
+                            self.handle_button_press(button_name)
+                            time.sleep(0.3)  # Debounce
+            except Exception as e:
+                print(f"Button monitoring error: {e}")
+                time.sleep(1)
+    
+    def handle_button_press(self, button_name):
+        """Handle button press event"""
+        if button_name == 'next':
+            self.current_screen = (self.current_screen + 1) % len(self.screen_list)
+            self.last_switch = time.time()  # Reset auto-switch timer
+            print(f"Button: Next screen -> {self.screen_list[self.current_screen]}")
+        elif button_name == 'prev':
+            self.current_screen = (self.current_screen - 1) % len(self.screen_list)
+            self.last_switch = time.time()  # Reset auto-switch timer
+            print(f"Button: Previous screen -> {self.screen_list[self.current_screen]}")
+    
     def display_screen(self, screen_name):
         """Display a specific screen"""
         img = Image.new('1', (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -235,16 +309,14 @@ class ArgonOLED:
         print(f"Switch duration: {self.switch_duration}s")
         print(f"Temperature unit: {self.temp_unit}")
         
-        last_switch = time.time()
-        
         try:
             while True:
                 current_time = time.time()
                 
-                # Switch screen if needed
-                if current_time - last_switch >= self.switch_duration:
+                # Switch screen if needed (auto-rotation)
+                if current_time - self.last_switch >= self.switch_duration:
                     self.current_screen = (self.current_screen + 1) % len(self.screen_list)
-                    last_switch = current_time
+                    self.last_switch = current_time
                 
                 # Display current screen
                 screen_name = self.screen_list[self.current_screen]
@@ -257,6 +329,11 @@ class ArgonOLED:
         except Exception as e:
             print(f"Error in main loop: {e}")
         finally:
+            # Cleanup GPIO
+            if self.chip:
+                for _, line in self.button_lines:
+                    line.release()
+                self.chip.close()
             self.device.clear()
             self.device.cleanup()
 

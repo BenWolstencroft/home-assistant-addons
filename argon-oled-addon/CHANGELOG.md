@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2025-11-19
+
+### Added
+- Button support for manual screen navigation
+- GPIO 4 button cycles to next screen
+- GPIO 17 button cycles to previous screen
+- Button presses reset auto-rotation timer
+- Background thread for button monitoring
+
+### Changed
+- Using gpiod library for GPIO access
+- Improved error handling for GPIO operations
+
 ## [1.0.3] - 2025-11-19
 
 ### Fixed
