@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.4] - 2025-11-19
+
+### Fixed
+- Button monitoring now uses discovered I2C addresses from device scan
+- Excludes OLED address (0x3C) from button monitoring
+- Remembers working I2C address to avoid repeated scanning
+- Shows which I2C addresses will be monitored at startup
+- Only logs I2C read errors for first 3 polls to reduce noise
+
+### Changed
+- Dynamic I2C address detection instead of hardcoded addresses
+- Better thread startup logging
+
 ## [1.1.3] - 2025-11-19
 
 ### Fixed

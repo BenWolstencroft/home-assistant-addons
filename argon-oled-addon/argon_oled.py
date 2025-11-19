@@ -232,23 +232,30 @@ class ArgonOLED:
             # Initialize I2C bus for button reading
             self.bus = smbus2.SMBus(I2C_BUS)
             print(f"Button support enabled via I2C bus {I2C_BUS}")
+            sys.stdout.flush()
             
             # Scan for I2C devices
             print("\n=== I2C Device Scan ===")
+            sys.stdout.flush()
             found_devices = []
             for addr in range(0x03, 0x78):
                 try:
                     self.bus.read_byte(addr)
-                    found_devices.append(f"0x{addr:02X}")
+                    found_devices.append(addr)
                     print(f"Found I2C device at address: 0x{addr:02X}")
+                    sys.stdout.flush()
                 except:
                     pass
             
             if not found_devices:
                 print("No I2C devices found (besides OLED)")
             else:
-                print(f"Total I2C devices found: {', '.join(found_devices)}")
+                print(f"Total I2C devices found: {len(found_devices)} - {', '.join([f'0x{a:02X}' for a in found_devices])}")
             print("======================\n")
+            sys.stdout.flush()
+            
+            # Store found devices for button polling
+            self.found_i2c_devices = found_devices
             
             if self.button_debug:
                 print("*** BUTTON DEBUG MODE ENABLED ***")
@@ -274,18 +281,34 @@ class ArgonOLED:
         print(f"[BUTTON THREAD] I2C Bus: {I2C_BUS}")
         sys.stdout.flush()
         
+        # Use discovered I2C devices, excluding OLED (0x3C)
+        addresses_to_monitor = [addr for addr in getattr(self, 'found_i2c_devices', []) if addr != I2C_ADDRESS]
+        if not addresses_to_monitor:
+            # Fallback to common addresses if scan failed
+            addresses_to_monitor = [0x1A, 0x20, 0x21, 0x30, 0x40]
+        
+        print(f"[BUTTON THREAD] Will monitor addresses: {', '.join([f'0x{a:02X}' for a in addresses_to_monitor])}")
+        sys.stdout.flush()
+        
         poll_count = 0
         last_error = None
+        working_address = None
         
         while True:
             try:
                 if self.bus:
-                    # Try multiple possible I2C addresses
-                    addresses_to_try = [BUTTON_I2C_ADDRESS, 0x1A, 0x20, 0x30]
+                    # Try addresses
+                    addresses_to_try = [working_address] if working_address else addresses_to_monitor
                     
                     for addr in addresses_to_try:
                         try:
                             button_state = self.bus.read_byte(addr)
+                            
+                            # Remember this address works
+                            if not working_address:
+                                working_address = addr
+                                print(f"[BUTTON THREAD] Found working I2C address: 0x{addr:02X}")
+                                sys.stdout.flush()
                             
                             # Debug output every 50 polls (5 seconds)
                             # Force output for first 10 polls to verify thread is working
@@ -296,6 +319,7 @@ class ArgonOLED:
                             # Detect new button press (state changed from 0)
                             if button_state != 0 and button_state != self.last_button_state:
                                 print(f"[BUTTON] Raw state detected: 0x{button_state:02X} at address 0x{addr:02X}")
+                                sys.stdout.flush()
                                 self.handle_button_press(button_state)
                                 self.last_button_state = button_state
                             elif button_state == 0:
@@ -305,8 +329,9 @@ class ArgonOLED:
                             
                         except OSError as e:
                             # I2C read failed for this address
-                            if self.button_debug and addr == BUTTON_I2C_ADDRESS and str(e) != last_error:
+                            if poll_count < 3 and str(e) != last_error:
                                 print(f"[DEBUG] Cannot read I2C address 0x{addr:02X}: {e}")
+                                sys.stdout.flush()
                                 last_error = str(e)
                             continue
                     
