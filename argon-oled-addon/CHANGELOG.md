@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2025-11-19
+
+### Fixed
+- Fixed Pillow build issues by using pre-built Alpine package instead of compiling from source
+- Added necessary image library dependencies for OLED display
+
 ## [1.0.0] - 2025-11-19
 
 ### Added
