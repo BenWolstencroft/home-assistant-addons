@@ -44,9 +44,7 @@ options:
   temp_unit: C
   switch_duration: 30
   screen_list: "logo clock cpu storage ram temp ip"
-  button_debug: false
 schema:
   temp_unit: list(C|F)
   switch_duration: int(5,300)
   screen_list: str
-  button_debug: bool

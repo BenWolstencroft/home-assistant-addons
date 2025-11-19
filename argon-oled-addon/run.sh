@@ -25,14 +25,9 @@ if [ ! -c /dev/i2c-1 ]; then
 fi
 
 # Export configuration as environment variables for Python script
-# Export configuration
-export TEMP_UNIT="$(bashio::config 'temp_unit')"
-export SWITCH_DURATION="$(bashio::config 'switch_duration')"
-export SCREEN_LIST="$(bashio::config 'screen_list' | jq -r 'join(",")')"
-
-if [ "${BUTTON_DEBUG}" = "true" ]; then
-    bashio::log.info "Button debug mode enabled"
-fi
+export TEMP_UNIT="${TEMP_UNIT}"
+export SWITCH_DURATION="${SWITCH_DURATION}"
+export SCREEN_LIST="${SCREEN_LIST}"
 
 # Run the OLED display script
 bashio::log.info "Starting OLED display service..."
