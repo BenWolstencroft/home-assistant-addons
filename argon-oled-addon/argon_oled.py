@@ -222,6 +222,7 @@ class ArgonOLED:
         """Setup I2C button polling for Argon ONE case"""
         self.bus = None
         self.last_button_state = 0
+        self.button_debug = os.environ.get('BUTTON_DEBUG', 'false').lower() == 'true'
         
         if not SMBUS_AVAILABLE:
             print("SMBus not available, buttons disabled")
@@ -230,7 +231,28 @@ class ArgonOLED:
         try:
             # Initialize I2C bus for button reading
             self.bus = smbus2.SMBus(I2C_BUS)
-            print("Button support enabled via I2C")
+            print(f"Button support enabled via I2C bus {I2C_BUS}")
+            
+            # Scan for I2C devices
+            print("\n=== I2C Device Scan ===")
+            found_devices = []
+            for addr in range(0x03, 0x78):
+                try:
+                    self.bus.read_byte(addr)
+                    found_devices.append(f"0x{addr:02X}")
+                    print(f"Found I2C device at address: 0x{addr:02X}")
+                except:
+                    pass
+            
+            if not found_devices:
+                print("No I2C devices found (besides OLED)")
+            else:
+                print(f"Total I2C devices found: {', '.join(found_devices)}")
+            print("======================\n")
+            
+            if self.button_debug:
+                print("*** BUTTON DEBUG MODE ENABLED ***")
+                print(f"Will monitor I2C address 0x{BUTTON_I2C_ADDRESS:02X} for button presses")
             
             # Start button monitoring thread
             self.button_thread = threading.Thread(target=self.monitor_buttons, daemon=True)
@@ -238,44 +260,87 @@ class ArgonOLED:
             
         except Exception as e:
             print(f"Warning: Could not setup buttons: {e}")
+            import traceback
+            traceback.print_exc()
             self.bus = None
     
     def monitor_buttons(self):
         """Monitor button presses via I2C in background thread"""
+        poll_count = 0
+        last_error = None
+        
         while True:
             try:
                 if self.bus:
-                    # Read button state from I2C (Argon ONE uses address 0x01)
-                    # Button values: 1=Power, 2=Button1, 4=Button2, 8=Button3
-                    try:
-                        button_state = self.bus.read_byte(BUTTON_I2C_ADDRESS)
-                        
-                        # Detect new button press (state changed from 0)
-                        if button_state != 0 and button_state != self.last_button_state:
-                            self.handle_button_press(button_state)
-                            self.last_button_state = button_state
-                        elif button_state == 0:
-                            self.last_button_state = 0
-                    except OSError:
-                        # I2C read failed, button might not be connected
-                        pass
+                    # Try multiple possible I2C addresses
+                    addresses_to_try = [BUTTON_I2C_ADDRESS, 0x1A, 0x20, 0x30]
+                    
+                    for addr in addresses_to_try:
+                        try:
+                            button_state = self.bus.read_byte(addr)
+                            
+                            # Debug output every 50 polls (5 seconds) when debug enabled
+                            if self.button_debug and poll_count % 50 == 0:
+                                print(f"[DEBUG] I2C 0x{addr:02X}: state=0x{button_state:02X} (binary={bin(button_state)}), last=0x{self.last_button_state:02X}")
+                            
+                            # Detect new button press (state changed from 0)
+                            if button_state != 0 and button_state != self.last_button_state:
+                                print(f"[BUTTON] Raw state detected: 0x{button_state:02X} at address 0x{addr:02X}")
+                                self.handle_button_press(button_state)
+                                self.last_button_state = button_state
+                            elif button_state == 0:
+                                self.last_button_state = 0
+                            
+                            break  # Successfully read, no need to try other addresses
+                            
+                        except OSError as e:
+                            # I2C read failed for this address
+                            if self.button_debug and addr == BUTTON_I2C_ADDRESS and str(e) != last_error:
+                                print(f"[DEBUG] Cannot read I2C address 0x{addr:02X}: {e}")
+                                last_error = str(e)
+                            continue
+                    
+                    poll_count += 1
                     
                 time.sleep(0.1)  # Poll every 100ms
             except Exception as e:
                 print(f"Button monitoring error: {e}")
+                import traceback
+                traceback.print_exc()
                 time.sleep(1)
     
     def handle_button_press(self, button_state):
         """Handle button press event"""
-        # Button state bits: 1=Power, 2=Next, 4=Previous, 8=Select
-        if button_state & 0x02:  # Button 1 (bit 1) - Next
+        print(f"[BUTTON] Handling button state: 0x{button_state:02X} (binary: {bin(button_state)})")
+        
+        # Try different bit patterns
+        # Common patterns: bit 0=0x01, bit 1=0x02, bit 2=0x04, bit 3=0x08
+        if button_state & 0x01:  # Bit 0
+            print(f"[BUTTON] Bit 0 pressed (0x01)")
+        if button_state & 0x02:  # Bit 1 - Try as Next
+            print(f"[BUTTON] Bit 1 pressed (0x02) - Next screen")
             self.current_screen = (self.current_screen + 1) % len(self.screen_list)
-            self.last_switch = time.time()  # Reset auto-switch timer
+            self.last_switch = time.time()
             print(f"Button: Next screen -> {self.screen_list[self.current_screen]}")
-        elif button_state & 0x04:  # Button 2 (bit 2) - Previous
+        if button_state & 0x04:  # Bit 2 - Try as Previous
+            print(f"[BUTTON] Bit 2 pressed (0x04) - Previous screen")
             self.current_screen = (self.current_screen - 1) % len(self.screen_list)
-            self.last_switch = time.time()  # Reset auto-switch timer
+            self.last_switch = time.time()
             print(f"Button: Previous screen -> {self.screen_list[self.current_screen]}")
+        if button_state & 0x08:  # Bit 3
+            print(f"[BUTTON] Bit 3 pressed (0x08)")
+        
+        # Also try treating the whole value as a button ID
+        if button_state not in [0x01, 0x02, 0x04, 0x08]:
+            print(f"[BUTTON] Unknown button pattern, treating as button ID: {button_state}")
+            if button_state == 0x10:  # Try 0x10 as next
+                self.current_screen = (self.current_screen + 1) % len(self.screen_list)
+                self.last_switch = time.time()
+                print(f"Button ID 0x10: Next screen -> {self.screen_list[self.current_screen]}")
+            elif button_state == 0x20:  # Try 0x20 as previous  
+                self.current_screen = (self.current_screen - 1) % len(self.screen_list)
+                self.last_switch = time.time()
+                print(f"Button ID 0x20: Previous screen -> {self.screen_list[self.current_screen]}")
     
     def display_screen(self, screen_name):
         """Display a specific screen"""

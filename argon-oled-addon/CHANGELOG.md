@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2025-11-19
+
+### Added
+- I2C device scanning at startup to detect available devices
+- Button debug mode configuration option
+- Detailed logging of button press events with hex and binary values
+- Multiple I2C address detection (tries 0x01, 0x1A, 0x20, 0x30)
+- Enhanced button state detection with multiple bit pattern support
+
+### Changed
+- More verbose button press logging
+- Better error reporting with stack traces
+- Polls multiple I2C addresses to find buttons
+
 ## [1.1.1] - 2025-11-19
 
 ### Fixed

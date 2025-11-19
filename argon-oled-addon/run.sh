@@ -28,6 +28,11 @@ fi
 export TEMP_UNIT="${TEMP_UNIT}"
 export SWITCH_DURATION="${SWITCH_DURATION}"
 export SCREEN_LIST="${SCREEN_LIST}"
+export BUTTON_DEBUG="$(bashio::config 'button_debug')"
+
+if [ "${BUTTON_DEBUG}" = "true" ]; then
+    bashio::log.info "Button debug mode enabled"
+fi
 
 # Run the OLED display script
 bashio::log.info "Starting OLED display service..."
