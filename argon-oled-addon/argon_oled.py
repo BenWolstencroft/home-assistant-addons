@@ -209,10 +209,7 @@ class ArgonOLED:
         draw.rectangle((0, 0, 127, 63), outline=255)
         draw.rectangle((2, 2, 125, 61), outline=255)
         
-        # Clock icon
-        draw.text((10, 10), "⏰", font=self.font_medium, fill=255)
-        
-        draw.text((10, 20), date_str, font=self.font_medium, fill=255)
+        draw.text((10, 12), date_str, font=self.font_medium, fill=255)
         draw.text((18, 40), time_str, font=self.font_large, fill=255)
     
     def draw_cpu(self, draw):
@@ -221,8 +218,8 @@ class ArgonOLED:
         cpu_temp = self.get_cpu_temp()
         temp_symbol = '°F' if self.temp_unit == 'F' else '°C'
         
-        # Header with processor icon
-        self.draw_header(draw, "CPU", "⚡")
+        # Header
+        self.draw_header(draw, "CPU")
         
         # Stats
         draw.text((5, 20), f"Usage: {cpu_usage:.1f}%", font=self.font_small, fill=255)
@@ -235,8 +232,8 @@ class ArgonOLED:
         """Draw RAM information"""
         mem_pct, mem_total = self.get_memory_usage()
         
-        # Header with memory icon
-        self.draw_header(draw, "Memory", "💾")
+        # Header
+        self.draw_header(draw, "Memory")
         
         # Stats
         draw.text((5, 20), f"Usage: {mem_pct:.1f}%", font=self.font_small, fill=255)
@@ -249,8 +246,8 @@ class ArgonOLED:
         """Draw storage information"""
         disk_pct, disk_total = self.get_disk_usage()
         
-        # Header with disk icon
-        self.draw_header(draw, "Storage", "💿")
+        # Header
+        self.draw_header(draw, "Storage")
         
         # Stats
         draw.text((5, 20), f"Usage: {disk_pct:.1f}%", font=self.font_small, fill=255)
@@ -264,8 +261,8 @@ class ArgonOLED:
         cpu_temp = self.get_cpu_temp()
         temp_symbol = '°F' if self.temp_unit == 'F' else '°C'
         
-        # Header with thermometer icon
-        self.draw_header(draw, "Temperature", "🌡️")
+        # Header
+        self.draw_header(draw, "Temperature")
         
         # Large temperature display
         temp_text = f"{cpu_temp:.1f}{temp_symbol}"
@@ -294,8 +291,8 @@ class ArgonOLED:
         """Draw IP address"""
         ip = self.get_ip_address()
         
-        # Header with network icon
-        self.draw_header(draw, "Network", "🌐")
+        # Header
+        self.draw_header(draw, "Network")
         
         # IP display with border
         draw.rectangle((5, 22, 122, 50), outline=255)

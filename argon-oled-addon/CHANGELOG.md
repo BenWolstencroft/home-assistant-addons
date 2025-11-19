@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.4] - 2025-11-19
+
+### Fixed
+- Removed emoji icons causing Latin-1 encoding errors
+- Replaced emoji decorations with text-only headers
+- Improved font compatibility
+
 ## [1.3.3] - 2025-11-19
 
 ### Fixed
