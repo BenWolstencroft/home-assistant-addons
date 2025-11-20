@@ -10,18 +10,11 @@ RUN apk add --no-cache \
     py3-pip \
     i2c-tools \
     bash \
-    py3-pillow
+    py3-pillow \
+    libgpiod \
+    py3-libgpiod
 
-# Install build dependencies temporarily for RPi.GPIO compilation
-RUN apk add --no-cache --virtual .build-deps \
-    python3-dev \
-    gcc \
-    musl-dev \
-    linux-headers \
- && pip3 install --no-cache-dir RPi.GPIO \
- && apk del .build-deps
-
-# Install remaining Python packages
+# Install Python packages
 RUN pip3 install --no-cache-dir \
     smbus2 \
     requests \

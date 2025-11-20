@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.6] - 2025-11-20
+
+### Changed
+- Switched from RPi.GPIO to libgpiod for container compatibility
+- RPi.GPIO doesn't work in Docker containers; libgpiod provides proper containerized GPIO access
+- Button functionality now fully supported in Home Assistant addon environment
+
 ## [1.6.5] - 2025-11-20
 
 ### Changed

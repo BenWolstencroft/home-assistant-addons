@@ -23,7 +23,7 @@ except ImportError:
     SMBUS_AVAILABLE = False
 
 try:
-    import RPi.GPIO as GPIO
+    import gpiod
     GPIO_AVAILABLE = True
 except ImportError:
     GPIO_AVAILABLE = False
@@ -63,14 +63,20 @@ class ArgonOLED:
         self.button_action = None  # For button press communication
         
         # Initialize GPIO for button if available
+        self.gpio_chip = None
+        self.gpio_line = None
         if GPIO_AVAILABLE:
             try:
-                GPIO.setwarnings(False)
-                GPIO.setmode(GPIO.BCM)
-                GPIO.setup(PIN_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-                self.debug_log("GPIO button monitoring initialized on pin 4")
+                self.gpio_chip = gpiod.Chip('gpiochip0')
+                self.gpio_line = self.gpio_chip.get_line(PIN_BUTTON)
+                self.gpio_line.request(consumer="argon_oled", type=gpiod.LINE_REQ_EV_RISING_EDGE)
+                self.debug_log(f"GPIO initialized successfully on pin {PIN_BUTTON}")
             except Exception as e:
-                self.debug_log(f"Could not initialize GPIO: {e}")
+                self.debug_log(f"Failed to initialize GPIO: {e}")
+                if self.gpio_chip:
+                    self.gpio_chip.close()
+                self.gpio_chip = None
+                self.gpio_line = None
     
     def debug_log(self, message):
         """Print debug message if debug logging is enabled"""
@@ -634,7 +640,7 @@ class ArgonOLED:
     
     def button_monitor(self):
         """Monitor button presses in separate thread"""
-        if not GPIO_AVAILABLE:
+        if not self.gpio_line:
             return
         
         self.debug_log("Button monitor thread started")
@@ -643,16 +649,16 @@ class ArgonOLED:
         
         try:
             while True:
-                # Wait for button press (rising edge)
-                GPIO.wait_for_edge(PIN_BUTTON, GPIO.RISING)
-                press_start = time.time()
-                
-                # Measure pulse width
-                time.sleep(0.01)
-                pulsetime = 0
-                while GPIO.input(PIN_BUTTON) == GPIO.HIGH:
-                    time.sleep(0.01)
-                    pulsetime += 1
+                # Wait for button press (rising edge) with timeout
+                if self.gpio_line.event_wait(sec=1):
+                    event = self.gpio_line.event_read()
+                    press_start = time.time()
+                    
+                    # Measure pulse width - count additional events within short window
+                    pulsetime = 0
+                    while self.gpio_line.event_wait(nsec=10000000):  # 10ms timeout
+                        self.gpio_line.event_read()
+                        pulsetime += 1
                 
                 press_end = time.time()
                 
