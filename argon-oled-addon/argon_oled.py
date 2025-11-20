@@ -37,7 +37,7 @@ HA_API_URL = 'http://supervisor/core/api'
 class ArgonOLED:
     """Argon ONE OLED Display Manager"""
     
-    def __init__(self, screen_list, switch_duration=30, temp_unit='C'):
+    def __init__(self, screen_list, switch_duration=30, temp_unit='C', debug_logging=False):
         """Initialize the OLED display"""
         try:
             self.serial = i2c(port=I2C_BUS, address=I2C_ADDRESS)
@@ -50,8 +50,15 @@ class ArgonOLED:
         self.screen_list = screen_list
         self.switch_duration = switch_duration
         self.temp_unit = temp_unit
+        self.debug_logging = debug_logging
         self.current_screen = 0
         self.last_switch = time.time()
+    
+    def debug_log(self, message):
+        """Print debug message if debug logging is enabled"""
+        if self.debug_logging:
+            print(message)
+            sys.stdout.flush()
         
         # Try to load fonts
         try:
@@ -82,14 +89,14 @@ class ArgonOLED:
                     # Resize to fit screen (max 128x64)
                     img.thumbnail((SCREEN_WIDTH, SCREEN_HEIGHT), Image.Resampling.LANCZOS)
                     self.logo_image = img
-                    print(f"Loaded logo image from: {logo_path}")
+                    self.debug_log(f"Loaded logo image from: {logo_path}")
                     break
             except Exception as e:
-                print(f"Could not load logo from {logo_path}: {e}")
+                self.debug_log(f"Could not load logo from {logo_path}: {e}")
         
         if not self.logo_image:
-            print("No logo image found, using text-based logo")
-            print("Tip: Place logo.png in /data/ or /config/ directory")
+            self.debug_log("No logo image found, using text-based logo")
+            self.debug_log("Tip: Place logo.png in /data/ or /config/ directory")
     
     def get_cpu_temp(self):
         """Get CPU temperature"""
@@ -188,7 +195,7 @@ class ArgonOLED:
                             ip = addresses[0].split('/')[0]
                             return ip
         except Exception as e:
-            print(f"Could not get IP from Supervisor API: {e}")
+            self.debug_log(f"Could not get IP from Supervisor API: {e}")
         
         # Final fallback to socket method (will get container IP)
         try:
@@ -226,7 +233,7 @@ class ArgonOLED:
                     if internal_url:
                         return internal_url
         except Exception as e:
-            print(f"Could not get HA URL from API: {e}")
+            self.debug_log(f"Could not get HA URL from API: {e}")
         
         # Fallback to IP-based URL using host IP
         ip = self.get_ip_address()
@@ -447,9 +454,10 @@ class ArgonOLED:
                         draw.rectangle((x1, y1, x2, y2), fill=255)
             
         except Exception as e:
-            print(f"Error generating QR code: {e}")
-            import traceback
-            traceback.print_exc()
+            self.debug_log(f"Error generating QR code: {e}")
+            if self.debug_logging:
+                import traceback
+                traceback.print_exc()
             self.draw_header(draw, "QR Code")
             draw.text((10, 25), "QR Error", font=self.font_small, fill=255)
             error_msg = str(e)[:15] if len(str(e)) > 0 else "Unknown"
@@ -477,7 +485,7 @@ class ArgonOLED:
                     else:
                         status_info['updates'] = 1
             except Exception as e:
-                print(f"Could not get supervisor updates: {e}")
+                self.debug_log(f"Could not get supervisor updates: {e}")
             
             # Get core updates
             try:
@@ -487,7 +495,7 @@ class ArgonOLED:
                     if data.get('update_available', False):
                         status_info['updates'] += 1
             except Exception as e:
-                print(f"Could not get core updates: {e}")
+                self.debug_log(f"Could not get core updates: {e}")
             
             # Get addon updates
             try:
@@ -499,7 +507,7 @@ class ArgonOLED:
                         if addon.get('update_available', False):
                             status_info['updates'] += 1
             except Exception as e:
-                print(f"Could not get addon updates: {e}")
+                self.debug_log(f"Could not get addon updates: {e}")
             
             # Get backup info
             try:
@@ -507,19 +515,24 @@ class ArgonOLED:
                 if response.status_code == 200:
                     data = response.json().get('data', {})
                     backups = data.get('backups', [])
+                    self.debug_log(f"DEBUG: Found {len(backups)} backups")
                     if backups:
                         # Sort by date and get most recent
                         sorted_backups = sorted(backups, key=lambda x: x.get('date', ''), reverse=True)
                         latest = sorted_backups[0]
+                        self.debug_log(f"DEBUG: Latest backup data: {latest}")
                         status_info['last_backup'] = latest.get('date', 'Unknown')
                         status_info['backup_state'] = 'OK'
                     else:
                         status_info['backup_state'] = 'None'
             except Exception as e:
-                print(f"Could not get backup info: {e}")
+                self.debug_log(f"Could not get backup info: {e}")
+                if self.debug_logging:
+                    import traceback
+                    traceback.print_exc()
             
         except Exception as e:
-            print(f"Error getting HA system status: {e}")
+            self.debug_log(f"Error getting HA system status: {e}")
         
         return status_info
     
@@ -546,14 +559,15 @@ class ArgonOLED:
         # draw.text((5, 33), "Repairs: 0", font=self.font_small, fill=255)
         
         # Last backup
-        if status['last_backup']:
+        if status['last_backup'] and status['last_backup'] != 'Unknown':
             try:
                 # Parse ISO format: 2025-11-19T10:30:00.000000+00:00
                 backup_dt = datetime.fromisoformat(status['last_backup'].replace('Z', '+00:00'))
                 backup_str = backup_dt.strftime("%m/%d %H:%M")
                 draw.text((5, 33), f"Backup: {backup_str}", font=self.font_small, fill=255)
-            except:
-                draw.text((5, 33), "Backup: Unknown", font=self.font_small, fill=255)
+            except Exception as e:
+                self.debug_log(f"Error parsing backup date '{status['last_backup']}': {e}")
+                draw.text((5, 33), "Backup: Parse Err", font=self.font_small, fill=255)
         else:
             draw.text((5, 33), f"Backup: {status['backup_state']}", font=self.font_small, fill=255)
         
@@ -601,19 +615,17 @@ class ArgonOLED:
     
     def run(self):
         """Main loop"""
-        print(f"Starting Argon OLED Display")
-        print(f"Screen rotation: {' -> '.join(self.screen_list)}")
-        print(f"Switch duration: {self.switch_duration}s")
-        print(f"Temperature unit: {self.temp_unit}")
-        sys.stdout.flush()
+        self.debug_log(f"Starting Argon OLED Display")
+        self.debug_log(f"Screen rotation: {' -> '.join(self.screen_list)}")
+        self.debug_log(f"Switch duration: {self.switch_duration}s")
+        self.debug_log(f"Temperature unit: {self.temp_unit}")
         
         loop_count = 0
         try:
             while True:
                 # Log heartbeat for first 10 loops
                 if loop_count < 10:
-                    print(f"[MAIN LOOP] Iteration {loop_count}")
-                    sys.stdout.flush()
+                    self.debug_log(f"[MAIN LOOP] Iteration {loop_count}")
                 
                 loop_count += 1
                 current_time = time.time()
@@ -646,9 +658,10 @@ def main():
     
     switch_duration = int(os.environ.get('SWITCH_DURATION', '30'))
     temp_unit = os.environ.get('TEMP_UNIT', 'C')
+    debug_logging = os.environ.get('DEBUG_LOGGING', 'false').lower() in ('true', '1', 'yes')
     
     # Create and run the OLED display
-    oled = ArgonOLED(screen_list, switch_duration, temp_unit)
+    oled = ArgonOLED(screen_list, switch_duration, temp_unit, debug_logging)
     oled.run()
 
 

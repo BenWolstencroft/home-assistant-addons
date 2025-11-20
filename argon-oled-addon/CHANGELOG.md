@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2025-11-19
+
+### Added
+- Debug logging configuration option (defaults to off)
+- All verbose logging now controlled by `debug_logging` setting
+- Cleaner logs by default with option to enable detailed debugging
+
+### Changed
+- Refactored debug logging to use centralized `debug_log()` method
+- Reduced default log verbosity significantly
+
 ## [1.5.0] - 2025-11-19
 
 ### Added

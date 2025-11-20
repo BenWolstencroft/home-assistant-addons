@@ -7,23 +7,27 @@ This add-on brings the functionality of the Argon ONE OLED display to Home Assis
 ## Features
 
 - 🖥️ Display system information on Argon ONE OLED screen
-- 📊 Multiple screens: Logo, Clock, CPU, RAM, Storage, Temperature, IP
+- 📊 Multiple screens: Logo, Clock, CPU, RAM, Storage, Temperature, IP, QR Code, HA Status
 - 🔄 Automatic screen rotation with configurable duration
 - 🌡️ Temperature display in Celsius or Fahrenheit
 - ⚡ Real-time system monitoring
+- 📱 QR code for quick Home Assistant access from mobile devices
+- 🏠 Home Assistant system status monitoring (updates, backups)
 - 🔘 Physical button support (GPIO 4) to manually cycle through screens
 
 ## Supported Screens
 
 The add-on can display the following screens:
 
-- **logo** / **logo1v5** - Argon ONE logo screen
+- **logo** - Argon ONE logo screen (custom image support)
 - **clock** - Current date and time
 - **cpu** - CPU usage percentage and temperature
 - **ram** - Memory usage and total memory
 - **storage** - Disk usage and total storage
 - **temp** - CPU temperature (large display)
-- **ip** - Network IP address
+- **ip** - Network IP address (host IP, not container IP)
+- **qr** - QR code for Home Assistant URL (scan to open HA on your phone)
+- **hastatus** / **status** - Home Assistant system status (updates, backups)
 
 ## Installation
 
@@ -60,7 +64,7 @@ Example configuration:
 ```yaml
 temp_unit: C
 switch_duration: 30
-screen_list: "logo clock cpu storage ram temp ip"
+screen_list: "logo clock cpu storage ram temp ip qr hastatus"
 ```
 
 ### Option: `temp_unit`
@@ -85,17 +89,19 @@ Default: `30`
 Space-separated list of screens to display in rotation.
 
 Available screens:
-- `logo` or `logo1v5` - Argon ONE logo
+- `logo` or `logo1v5` - Argon ONE logo (supports custom images)
 - `clock` - Date and time
 - `cpu` - CPU information
 - `ram` - Memory information
 - `storage` - Disk information
 - `temp` - Temperature display
-- `ip` - IP address
+- `ip` - IP address (host IP)
+- `qr` - QR code for Home Assistant URL
+- `hastatus` or `status` - Home Assistant system status
 
-Example: `"logo clock cpu ram"`
+Example: `"logo clock cpu ram qr hastatus"`
 
-Default: `"logo clock cpu storage ram temp ip"`
+Default: `"logo clock cpu storage ram temp ip qr hastatus"`
 
 ## Hardware Requirements
 

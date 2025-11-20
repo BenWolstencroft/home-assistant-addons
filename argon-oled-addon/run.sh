@@ -10,11 +10,13 @@ bashio::log.info "Starting Argon ONE OLED Display Add-on..."
 TEMP_UNIT=$(bashio::config 'temp_unit')
 SWITCH_DURATION=$(bashio::config 'switch_duration')
 SCREEN_LIST=$(bashio::config 'screen_list')
+DEBUG_LOGGING=$(bashio::config 'debug_logging')
 
 # Log configuration
 bashio::log.info "Temperature unit: ${TEMP_UNIT}"
 bashio::log.info "Screen switch duration: ${SWITCH_DURATION}s"
 bashio::log.info "Screen list: ${SCREEN_LIST}"
+bashio::log.info "Debug logging: ${DEBUG_LOGGING}"
 
 # Check if I2C device is available
 if [ ! -c /dev/i2c-1 ]; then
@@ -28,6 +30,7 @@ fi
 export TEMP_UNIT="${TEMP_UNIT}"
 export SWITCH_DURATION="${SWITCH_DURATION}"
 export SCREEN_LIST="${SCREEN_LIST}"
+export DEBUG_LOGGING="${DEBUG_LOGGING}"
 
 # Run the OLED display script
 bashio::log.info "Starting OLED display service..."
