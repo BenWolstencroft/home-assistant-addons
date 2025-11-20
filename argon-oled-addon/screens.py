@@ -120,10 +120,13 @@ class ScreenRenderer:
         
         # Draw HH:MM:SS in segmented style with slightly smaller digits to fit all 6
         x_offset = 2
-        digit_width = 14
-        digit_spacing = 3  # At least 1 pixel between digits
-        colon_spacing = 5  # Space for colon dots
         scale = 1.75
+        # Calculate actual digit width: seg_h + seg_w + seg_h = thickness + width + thickness
+        # seg_w = int(8 * 1.75) = 14, seg_h = int(2 * 1.75) = 3
+        # Total width = 3 + 14 + 3 = 20 pixels
+        digit_width = int(2 * scale) + int(8 * scale) + int(2 * scale)  # 20 pixels
+        digit_spacing = 2  # Gap between digits
+        colon_spacing = 5  # Space for colon dots
         
         # Draw HH
         self._draw_segment_digit(draw, x_offset, 22, int(hour[0]), scale)

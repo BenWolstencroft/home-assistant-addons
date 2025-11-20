@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.0] - 2025-11-20
+
+### Changed
+- Completed modularization refactoring: main file now imports and uses the extracted modules
+- Reduced main file size by 51% (from 1105 lines to 538 lines)
+- Eliminated all code duplication between argon_oled.py and module files
+- Main orchestrator now properly delegates to SystemInfo, SupervisorAPI, and ScreenRenderer classes
+
+### Technical
+- Updated Dockerfile to include all Python module files (system_info.py, supervisor_api.py, screens.py)
+- Improved code maintainability and separation of concerns
+
 ## [1.12.1] - 2025-11-20
 
 ### Changed
