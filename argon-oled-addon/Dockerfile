@@ -25,6 +25,7 @@ RUN pip3 install --no-cache-dir --no-deps luma.core luma.oled
 # Copy data
 COPY run.sh /
 COPY argon_oled.py /
+COPY logo.png /
 
 RUN chmod a+x /run.sh
 

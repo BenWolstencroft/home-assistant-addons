@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] - 2025-11-20
+
+### Added
+- Default logo image bundled with addon
+- Logo screen now shows graphical logo by default instead of text
+- Users can still override with custom logo in /data/ or /config/ directories
+
+### Changed
+- Logo fallback order: /data/ → /config/ → bundled default → text-based
+
 ## [1.5.1] - 2025-11-19
 
 ### Added

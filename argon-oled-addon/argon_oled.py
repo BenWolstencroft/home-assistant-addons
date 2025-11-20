@@ -78,6 +78,7 @@ class ArgonOLED:
             '/data/logo.bmp',
             '/config/argon_logo.png',
             '/config/argon_logo.jpg',
+            '/logo.png',  # Default logo bundled with addon
         ]
         
         for logo_path in logo_paths:
@@ -95,7 +96,7 @@ class ArgonOLED:
                 self.debug_log(f"Could not load logo from {logo_path}: {e}")
         
         if not self.logo_image:
-            self.debug_log("No logo image found, using text-based logo")
+            self.debug_log("No logo image could be loaded")
             self.debug_log("Tip: Place logo.png in /data/ or /config/ directory")
     
     def get_cpu_temp(self):
