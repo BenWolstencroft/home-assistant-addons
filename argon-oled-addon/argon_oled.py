@@ -780,6 +780,8 @@ class ArgonOLED:
                             cancelled = False
                             button_was_released = False
                             
+                            self.debug_log("Starting shutdown confirmation countdown...")
+                            
                             for countdown in range(5, 0, -1):
                                 # Draw countdown with progress bar
                                 with canvas(self.device) as draw:
@@ -794,12 +796,19 @@ class ArgonOLED:
                                     draw.rectangle((5, 57, 5 + bar_width, 62), fill=255)
                                 
                                 # Check for button press to cancel (wait for release then press)
-                                for _ in range(10):  # Check 10 times per second
+                                for i in range(10):  # Check 10 times per second
                                     try:
                                         if self.gpio_line:
                                             button_state = self.gpio_line.get_value(PIN_BUTTON)
+                                            
+                                            # Debug first few iterations
+                                            if countdown == 5 and i < 3:
+                                                self.debug_log(f"Button state: {button_state}, released: {button_was_released}")
+                                            
                                             # Track when button is released
                                             if button_state == 1:
+                                                if not button_was_released:
+                                                    self.debug_log("Button released, ready to detect cancel press")
                                                 button_was_released = True
                                             # Detect new press after release
                                             elif button_state == 0 and button_was_released:
@@ -811,8 +820,8 @@ class ArgonOLED:
                                                     draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
                                                 time.sleep(2)
                                                 break
-                                    except:
-                                        pass
+                                    except Exception as e:
+                                        self.debug_log(f"Button check error: {e}")
                                     time.sleep(0.1)
                                 
                                 if cancelled:
@@ -875,6 +884,8 @@ class ArgonOLED:
                             cancelled = False
                             button_was_released = False
                             
+                            self.debug_log("Starting reboot confirmation countdown...")
+                            
                             for countdown in range(5, 0, -1):
                                 # Draw countdown with progress bar
                                 with canvas(self.device) as draw:
@@ -889,12 +900,19 @@ class ArgonOLED:
                                     draw.rectangle((5, 57, 5 + bar_width, 62), fill=255)
                                 
                                 # Check for button press to cancel (wait for release then press)
-                                for _ in range(10):  # Check 10 times per second
+                                for i in range(10):  # Check 10 times per second
                                     try:
                                         if self.gpio_line:
                                             button_state = self.gpio_line.get_value(PIN_BUTTON)
+                                            
+                                            # Debug first few iterations
+                                            if countdown == 5 and i < 3:
+                                                self.debug_log(f"Button state: {button_state}, released: {button_was_released}")
+                                            
                                             # Track when button is released
                                             if button_state == 1:
+                                                if not button_was_released:
+                                                    self.debug_log("Button released, ready to detect cancel press")
                                                 button_was_released = True
                                             # Detect new press after release
                                             elif button_state == 0 and button_was_released:
@@ -906,8 +924,8 @@ class ArgonOLED:
                                                     draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
                                                 time.sleep(2)
                                                 break
-                                    except:
-                                        pass
+                                    except Exception as e:
+                                        self.debug_log(f"Button check error: {e}")
                                     time.sleep(0.1)
                                 
                                 if cancelled:

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.4] - 2025-11-20
+
+### Added
+- Debug logging for button state during confirmation countdown
+- Better error handling for button detection
+
+### Changed
+- Improved button state tracking during cancel detection
+
 ## [1.10.3] - 2025-11-20
 
 ### Fixed
