@@ -81,11 +81,14 @@ class ArgonOLED:
                     print(f"Trying to open {chip_path}...")
                     self.gpio_chip = gpiod.Chip(chip_path)
                     print(f"Successfully opened {chip_path}")
+                    print(f"Chip has {self.gpio_chip.num_lines()} lines")
                     
-                    # Try to get the button line
+                    # Try to get the button line - py3-libgpiod uses different API
                     try:
-                        self.gpio_line = self.gpio_chip.get_line(PIN_BUTTON)
-                        self.gpio_line.request(consumer="argon_oled", type=gpiod.LINE_REQ_EV_RISING_EDGE)
+                        # Alpine's py3-libgpiod uses get_lines() or line_offset
+                        lines = self.gpio_chip.get_lines([PIN_BUTTON])
+                        lines.request(consumer="argon_oled", type=gpiod.LINE_REQ_DIR_IN, flags=gpiod.LINE_REQ_FLAG_BIAS_PULL_UP)
+                        self.gpio_line = lines
                         print(f"GPIO initialized successfully on {chip_path} pin {PIN_BUTTON}")
                         break
                     except Exception as line_error:
@@ -680,18 +683,33 @@ class ArgonOLED:
         
         try:
             while True:
-                # Wait for button press (rising edge) with timeout
-                if self.gpio_line.event_wait(sec=1):
-                    event = self.gpio_line.event_read()
-                    press_start = time.time()
+                # Poll for button state changes (py3-libgpiod doesn't have event_wait)
+                try:
+                    # Read the current value
+                    vals = self.gpio_line.get_values()
+                    current_val = vals[0]
                     
-                    # Measure pulse width - count additional events within short window
-                    pulsetime = 0
-                    while self.gpio_line.event_wait(nsec=10000000):  # 10ms timeout
-                        self.gpio_line.event_read()
-                        pulsetime += 1
-                
-                press_end = time.time()
+                    # Detect press (assuming active low with pull-up)
+                    if current_val == 0:  # Button pressed
+                        press_start = time.time()
+                        
+                        # Wait for release
+                        while True:
+                            vals = self.gpio_line.get_values()
+                            if vals[0] == 1:  # Released
+                                break
+                            time.sleep(0.01)
+                        
+                        press_end = time.time()
+                        pulsetime = int((press_end - press_start) * 10)
+                    else:
+                        time.sleep(0.1)
+                        continue
+                    
+                except Exception as read_error:
+                    self.debug_log(f"Error reading GPIO: {read_error}")
+                    time.sleep(1)
+                    continue
                 
                 # Check if this is part of a double press (within 0.5 seconds)
                 if press_end - last_press_time < 0.5:

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.2] - 2025-11-20
+
+### Fixed
+- Updated to use correct py3-libgpiod API (Alpine package uses different methods than pip package)
+- Changed from get_line() to get_lines() for line access
+- Changed button monitoring from event-based to polling with get_values()
+- Fixed initialization to use LINE_REQ_DIR_IN with pull-up bias
+
 ## [1.7.1] - 2025-11-20
 
 ### Fixed
