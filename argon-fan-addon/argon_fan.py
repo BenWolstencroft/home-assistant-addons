@@ -17,9 +17,15 @@ import logging
 from pathlib import Path
 
 try:
-    import smbus2 as smbus
+    from smbus2 import SMBus
+    SMBUS_MODULE = 'smbus2'
 except ImportError:
-    import smbus
+    try:
+        from smbus import SMBus
+        SMBUS_MODULE = 'smbus'
+    except ImportError:
+        print("ERROR: No smbus library available")
+        sys.exit(1)
 
 # I2C Configuration
 ADDR_FAN = 0x1a
@@ -121,8 +127,8 @@ class ArgonFanController:
                 continue
                 
             try:
-                logger.debug(f"Attempting to open I2C bus {bus_num}...")
-                test_bus = smbus.SMBus(bus_num)
+                logger.debug(f"Attempting to open I2C bus {bus_num} using {SMBUS_MODULE}...")
+                test_bus = SMBus(bus_num)
                 
                 # Try a safe write operation (fan off) instead of read
                 try:
