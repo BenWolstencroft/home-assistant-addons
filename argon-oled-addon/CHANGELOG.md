@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2025-11-20
+
+### Changed
+- Disabled AppArmor protection mode (apparmor: false) to allow GPIO device access
+- Required for button functionality to work properly in containerized environment
+
+## [1.6.9] - 2025-11-20
+
+### Added
+- Enhanced GPIO debugging to list available /dev/gpiochip* devices
+- More detailed error messages for GPIO initialization attempts
+- Extended chip search to include gpiochip0-4
+
 ## [1.6.8] - 2025-11-20
 
 ### Fixed

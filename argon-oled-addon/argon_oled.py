@@ -66,15 +66,27 @@ class ArgonOLED:
         self.gpio_chip = None
         self.gpio_line = None
         if GPIO_AVAILABLE:
+            # First, list available GPIO chips
+            print("Checking for available GPIO chips...")
+            import glob
+            gpio_chips = glob.glob('/dev/gpiochip*')
+            if gpio_chips:
+                print(f"Found GPIO chips: {', '.join(gpio_chips)}")
+            else:
+                print("No /dev/gpiochip* devices found")
+            
             # Try different gpiochip devices
-            for chip_name in ['gpiochip0', 'gpiochip4', 'gpiochip1']:
+            for chip_name in ['gpiochip0', 'gpiochip4', 'gpiochip1', 'gpiochip2', 'gpiochip3']:
                 try:
+                    print(f"Trying to open {chip_name}...")
                     self.gpio_chip = gpiod.Chip(chip_name)
+                    print(f"Successfully opened {chip_name}")
                     self.gpio_line = self.gpio_chip.get_line(PIN_BUTTON)
                     self.gpio_line.request(consumer="argon_oled", type=gpiod.LINE_REQ_EV_RISING_EDGE)
-                    self.debug_log(f"GPIO initialized successfully on {chip_name} pin {PIN_BUTTON}")
+                    print(f"GPIO initialized successfully on {chip_name} pin {PIN_BUTTON}")
                     break
                 except Exception as e:
+                    print(f"Failed to initialize {chip_name}: {e}")
                     if self.gpio_chip:
                         try:
                             self.gpio_chip.close()
@@ -82,9 +94,11 @@ class ArgonOLED:
                             pass
                     self.gpio_chip = None
                     self.gpio_line = None
-                    if 'gpiochip1' in chip_name:  # Last attempt
-                        print(f"Failed to initialize GPIO: {e}")
-                        print("Button functionality will be disabled")
+            
+            if not self.gpio_line:
+                print("Button functionality will be disabled - no GPIO access available")
+        else:
+            print("gpiod library not available - button functionality disabled")
         
         # Load fonts
         try:
