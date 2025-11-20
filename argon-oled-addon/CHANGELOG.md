@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.4] - 2025-11-20
+
+### Changed
+- Converted all reboot/shutdown logging to use debug_log method for consistency
+- API logging now respects debug_logging setting
+- Traceback output only shown when debug_logging is enabled
+- Removed sys.stdout.flush() calls and time.sleep(5) that are no longer needed
+
+## [1.9.3] - 2025-11-20
+
+### Fixed
+- Enhanced error handling and logging for reboot/shutdown API calls
+- Added detailed response logging (status code, response body)
+- Added Content-Type header to API requests
+- Added traceback printing for exceptions
+- Increased wait time after API call to ensure logs are visible
+
+### Changed
+- Now logs supervisor token presence (without revealing the token)
+- Captures and logs API response status and body for debugging
+- Better timeout handling with specific messages
+
+## [1.9.2] - 2025-11-20
+
+### Changed
+- Power actions now wait for button release before executing
+- Display updates at 10 seconds: "REBOOTING - Release to confirm"
+- Display updates at 15 seconds: "SHUTDOWN - Release to confirm" (overrides reboot)
+- Action is determined by total hold time when button is released
+- User must release button to confirm the action
+
+### Improved
+- Better user feedback - shows intended action while button is still held
+- Prevents accidental triggers - requires deliberate release to execute
+- Clear on-screen confirmation of which action will be performed
+
 ## [1.9.1] - 2025-11-20
 
 ### Fixed

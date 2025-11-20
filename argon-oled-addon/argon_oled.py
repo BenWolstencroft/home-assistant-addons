@@ -689,8 +689,10 @@ class ArgonOLED:
                     # Detect press (Value.ACTIVE = 1, Value.INACTIVE = 0 with pull-up, so pressed = 0)
                     if current_val == Value.INACTIVE:  # Button pressed (active low)
                         press_start = time.time()
+                        reboot_displayed = False
+                        shutdown_displayed = False
                         
-                        # Wait for release or check for long holds
+                        # Wait for release and display messages for long holds
                         while True:
                             if self.gpio_line.get_value(PIN_BUTTON) == Value.ACTIVE:  # Released
                                 break
@@ -698,56 +700,110 @@ class ArgonOLED:
                             # Check how long button has been held
                             hold_time = time.time() - press_start
                             
-                            # Shutdown if held for 15+ seconds
-                            if hold_time >= 15.0:
-                                self.debug_log("Button: 15+ second hold detected - initiating shutdown")
-                                print("SHUTDOWN: Button held for 15+ seconds")
-                                sys.stdout.flush()
-                                # Display shutdown message
+                            # Display shutdown message if held for 15+ seconds
+                            if hold_time >= 15.0 and not shutdown_displayed:
+                                self.debug_log("Button: 15 seconds - will shutdown on release")
                                 with canvas(self.device) as draw:
                                     draw.rectangle(self.device.bounding_box, outline="white", fill="black")
-                                    draw.text((10, 20), "SHUTDOWN", fill="white", font=self.font_large)
-                                    draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
-                                time.sleep(2)
-                                # Use Supervisor API to shutdown
-                                try:
-                                    supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
-                                    requests.post(
-                                        'http://supervisor/host/shutdown',
-                                        headers={'Authorization': f'Bearer {supervisor_token}'},
-                                        timeout=10
-                                    )
-                                except Exception as e:
-                                    print(f"Shutdown error: {e}")
-                                sys.exit(0)
+                                    draw.text((10, 15), "SHUTDOWN", fill="white", font=self.font_large)
+                                    draw.text((5, 40), "Release to confirm", fill="white", font=self.font_small)
+                                shutdown_displayed = True
                             
-                            # Reboot if held for 10+ seconds
-                            elif hold_time >= 10.0:
-                                self.debug_log("Button: 10+ second hold detected - initiating reboot")
-                                print("REBOOT: Button held for 10+ seconds")
-                                sys.stdout.flush()
-                                # Display reboot message
+                            # Display reboot message if held for 10+ seconds (but less than 15)
+                            elif hold_time >= 10.0 and not reboot_displayed and not shutdown_displayed:
+                                self.debug_log("Button: 10 seconds - will reboot on release")
                                 with canvas(self.device) as draw:
                                     draw.rectangle(self.device.bounding_box, outline="white", fill="black")
-                                    draw.text((15, 20), "REBOOTING", fill="white", font=self.font_large)
-                                    draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
-                                time.sleep(2)
-                                # Use Supervisor API to reboot
-                                try:
-                                    supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
-                                    requests.post(
-                                        'http://supervisor/host/reboot',
-                                        headers={'Authorization': f'Bearer {supervisor_token}'},
-                                        timeout=10
-                                    )
-                                except Exception as e:
-                                    print(f"Reboot error: {e}")
-                                sys.exit(0)
+                                    draw.text((15, 15), "REBOOTING", fill="white", font=self.font_large)
+                                    draw.text((5, 40), "Release to confirm", fill="white", font=self.font_small)
+                                reboot_displayed = True
                             
                             time.sleep(0.1)
                         
                         press_end = time.time()
-                        pulsetime = int((press_end - press_start) * 10)
+                        total_hold = press_end - press_start
+                        pulsetime = int(total_hold * 10)
+                        
+                        # Execute action based on total hold time
+                        if total_hold >= 15.0:
+                            self.debug_log("Button released after 15+ seconds - executing shutdown")
+                            self.debug_log("SHUTDOWN: Button held for 15+ seconds")
+                            # Display executing message
+                            with canvas(self.device) as draw:
+                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                draw.text((10, 20), "SHUTDOWN", fill="white", font=self.font_large)
+                                draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
+                            time.sleep(1)
+                            # Use Supervisor API to shutdown
+                            try:
+                                supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
+                                self.debug_log(f"Supervisor token present: {bool(supervisor_token)}")
+                                self.debug_log("Sending shutdown request to supervisor...")
+                                
+                                response = requests.post(
+                                    'http://supervisor/host/shutdown',
+                                    headers={
+                                        'Authorization': f'Bearer {supervisor_token}',
+                                        'Content-Type': 'application/json'
+                                    },
+                                    timeout=10
+                                )
+                                self.debug_log(f"Shutdown response status: {response.status_code}")
+                                self.debug_log(f"Shutdown response body: {response.text}")
+                                
+                                if response.status_code not in [200, 202]:
+                                    self.debug_log(f"WARNING: Unexpected status code: {response.status_code}")
+                                    
+                            except requests.exceptions.Timeout:
+                                self.debug_log("Shutdown request timed out (may still execute)")
+                            except Exception as e:
+                                self.debug_log(f"Shutdown error: {type(e).__name__}: {e}")
+                                if self.debug_logging:
+                                    import traceback
+                                    traceback.print_exc()
+                            
+                            time.sleep(5)  # Wait a bit to see logs before exit
+                            sys.exit(0)
+                        
+                        elif total_hold >= 10.0:
+                            self.debug_log("Button released after 10+ seconds - executing reboot")
+                            self.debug_log("REBOOT: Button held for 10+ seconds")
+                            # Display executing message
+                            with canvas(self.device) as draw:
+                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                draw.text((15, 20), "REBOOTING", fill="white", font=self.font_large)
+                                draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
+                            time.sleep(1)
+                            # Use Supervisor API to reboot
+                            try:
+                                supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
+                                self.debug_log(f"Supervisor token present: {bool(supervisor_token)}")
+                                self.debug_log("Sending reboot request to supervisor...")
+                                
+                                response = requests.post(
+                                    'http://supervisor/host/reboot',
+                                    headers={
+                                        'Authorization': f'Bearer {supervisor_token}',
+                                        'Content-Type': 'application/json'
+                                    },
+                                    timeout=10
+                                )
+                                self.debug_log(f"Reboot response status: {response.status_code}")
+                                self.debug_log(f"Reboot response body: {response.text}")
+                                
+                                if response.status_code not in [200, 202]:
+                                    self.debug_log(f"WARNING: Unexpected status code: {response.status_code}")
+                                    
+                            except requests.exceptions.Timeout:
+                                self.debug_log("Reboot request timed out (may still execute)")
+                            except Exception as e:
+                                self.debug_log(f"Reboot error: {type(e).__name__}: {e}")
+                                if self.debug_logging:
+                                    import traceback
+                                    traceback.print_exc()
+                            
+                            time.sleep(5)  # Wait a bit to see logs before exit
+                            sys.exit(0)
                     else:
                         time.sleep(0.1)
                         continue
