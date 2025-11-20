@@ -769,8 +769,8 @@ class ArgonOLED:
                         total_hold = press_end - press_start
                         pulsetime = int(total_hold * 10)
                         
-                        # Clear power hold flag now that button is released
-                        self.button_in_power_hold = False
+                        # Keep power hold flag set during confirmation to prevent screen rotation
+                        # It will be cleared after cancel or execution
                         
                         # Execute action based on total hold time (only if power management is enabled)
                         if total_hold >= 15.0 and self.power_management_enabled:
@@ -797,6 +797,7 @@ class ArgonOLED:
                                         if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 0:
                                             self.debug_log("Shutdown cancelled by button press")
                                             cancelled = True
+                                            self.button_in_power_hold = False  # Resume screen rotation
                                             with canvas(self.device) as draw:
                                                 draw.rectangle(self.device.bounding_box, outline="white", fill="black")
                                                 draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
@@ -883,6 +884,7 @@ class ArgonOLED:
                                         if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 0:
                                             self.debug_log("Reboot cancelled by button press")
                                             cancelled = True
+                                            self.button_in_power_hold = False  # Resume screen rotation
                                             with canvas(self.device) as draw:
                                                 draw.rectangle(self.device.bounding_box, outline="white", fill="black")
                                                 draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)

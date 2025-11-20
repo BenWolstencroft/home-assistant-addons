@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.1] - 2025-11-20
+
+### Fixed
+- Screen no longer flickers during confirmation countdown
+- Screen rotation stays paused during entire confirmation process
+- Screen rotation resumes only after cancellation
+
 ## [1.10.0] - 2025-11-20
 
 ### Added
