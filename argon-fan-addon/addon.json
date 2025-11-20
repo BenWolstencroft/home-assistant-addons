@@ -1,6 +1,6 @@
 {
   "name": "Argon ONE Active Cooling",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "slug": "argon_one_active_cooling",
   "description": "Temperature-based fan control for Argon ONE v5 case with I2C communication",
   "url": "https://github.com/BenWolstencroft/home-assistant-addons",

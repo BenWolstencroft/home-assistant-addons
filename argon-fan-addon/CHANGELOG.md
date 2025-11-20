@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2025-11-20
+
+### Fixed
+- Added SYS_RAWIO privilege for proper I2C device access
+- Improved I2C bus detection - now automatically scans multiple buses to find Argon device
+- Enhanced error messages for I2C communication failures with troubleshooting hints
+- Added device detection at startup to verify Argon ONE case is connected
+- Better handling of I2C errors - continues running instead of crashing
+
+### Changed
+- I2C initialization now tries multiple bus numbers (1, 0, 3, 10, 11, 22) automatically
+- Added detailed logging of available I2C devices on startup failure
+
 ## [1.0.1] - 2025-11-20
 
 ### Fixed

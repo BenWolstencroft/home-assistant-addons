@@ -87,13 +87,36 @@ class ArgonFanController:
     
     def init_i2c(self):
         """Initialize I2C bus communication"""
-        try:
-            self.bus = smbus.SMBus(I2C_BUS)
-            logger.info(f"I2C bus {I2C_BUS} initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize I2C bus: {e}")
-            logger.error("Make sure I2C is enabled on your Raspberry Pi")
-            sys.exit(1)
+        # Try to find the correct I2C bus
+        for bus_num in [1, 0, 3, 10, 11, 22]:
+            try:
+                test_bus = smbus.SMBus(bus_num)
+                # Try to read from the Argon device
+                try:
+                    test_bus.read_byte(ADDR_FAN)
+                    self.bus = test_bus
+                    logger.info(f"I2C bus {bus_num} initialized successfully")
+                    logger.info(f"Argon ONE device detected at address 0x{ADDR_FAN:02x}")
+                    return
+                except IOError:
+                    # Device not on this bus, continue searching
+                    test_bus.close()
+                    continue
+            except Exception:
+                continue
+        
+        # If we get here, no working bus was found
+        logger.error("Failed to initialize I2C bus and locate Argon ONE device")
+        logger.error("Possible issues:")
+        logger.error("  1. I2C is not enabled on your Raspberry Pi")
+        logger.error("  2. Argon ONE case is not properly connected")
+        logger.error("  3. I2C device permissions issue")
+        logger.error("Available I2C devices:")
+        import os
+        i2c_devs = [d for d in os.listdir('/dev') if d.startswith('i2c-')]
+        for dev in i2c_devs:
+            logger.error(f"  /dev/{dev}")
+        sys.exit(1)
     
     def get_cpu_temp(self):
         """Read CPU temperature from the system"""
@@ -182,6 +205,10 @@ class ArgonFanController:
             except IOError as e:
                 logger.error(f"I2C communication error while setting fan speed: {e}")
                 logger.error("Check I2C connection and Argon ONE case")
+                logger.error("If you see 'Remote I/O error', the device may not be responding")
+                logger.error(f"Device address: 0x{ADDR_FAN:02x}, Bus: {getattr(self.bus, '_fd', 'unknown')}")
+                # Don't exit, just skip this update
+                return self.current_speed
             except Exception as e:
                 logger.error(f"Unexpected error setting fan speed: {e}")
         else:
