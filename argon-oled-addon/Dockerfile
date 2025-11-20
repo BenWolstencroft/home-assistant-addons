@@ -10,7 +10,10 @@ RUN apk add --no-cache \
     py3-pip \
     i2c-tools \
     bash \
-    py3-pillow
+    py3-pillow \
+    python3-dev \
+    gcc \
+    musl-dev
 
 # Install Python packages
 RUN pip3 install --no-cache-dir \
