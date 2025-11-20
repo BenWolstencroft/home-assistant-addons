@@ -1,0 +1,32 @@
+{
+  "name": "Argon ONE Active Cooling",
+  "version": "1.0.0",
+  "slug": "argon_one_active_cooling",
+  "description": "Temperature-based fan control for Argon ONE v5 case with I2C communication",
+  "url": "https://github.com/BenWolstencroft/home-assistant-addons",
+  "startup": "application",
+  "boot": "auto",
+  "arch": ["armhf", "armv7", "aarch64"],
+  "hassio_api": true,
+  "homeassistant_api": true,
+  "gpio": true,
+  "devices": ["/dev/i2c-1"],
+  "options": {
+    "temp_unit": "C",
+    "cpu_fan_temps": [
+      {"temp": 55, "speed": 30},
+      {"temp": 60, "speed": 55},
+      {"temp": 65, "speed": 100}
+    ],
+    "check_interval": 60,
+    "debug_logging": false
+  },
+  "schema": {
+    "temp_unit": "list(C|F)",
+    "cpu_fan_temps": [
+      {"temp": "int(30,85)", "speed": "int(0,100)"}
+    ],
+    "check_interval": "int(10,300)",
+    "debug_logging": "bool"
+  }
+}

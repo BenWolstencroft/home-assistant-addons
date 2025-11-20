@@ -9,13 +9,30 @@ A collection of custom Home Assistant add-ons for various hardware and functiona
 Display system information on your Argon ONE case's OLED screen.
 
 **Features:**
-- 🖥️ Display system stats on 128x64 OLED
-- 📊 Multiple screens: Logo, Clock, CPU, RAM, Storage, Temperature, IP
-- 🔄 Automatic screen rotation
-- 🌡️ Temperature in Celsius or Fahrenheit
-- ⚡ Real-time monitoring
+- 🖥️ Display system information on 128x64 OLED screen
+- 📊 Multiple screens: Logo, Clock, CPU, RAM, Storage, Temperature, IP, QR Code, HA Status
+- 🔄 Automatic screen rotation with configurable duration
+- 🌡️ Temperature display in Celsius or Fahrenheit
+- ⚡ Real-time system monitoring
+- 📱 QR code for quick Home Assistant access
+- 🏠 Home Assistant system status monitoring
+- 🔘 Physical button support to manually cycle screens
 
 [View Documentation →](argon-oled-addon/README.md)
+
+### [Argon ONE Active Cooling](argon-fan-addon/)
+
+Intelligent temperature-based fan control for your Argon ONE v5 case.
+
+**Features:**
+- 🌡️ Automatic CPU temperature monitoring
+- 💨 Smart fan speed control via I2C
+- ⚙️ Fully configurable temperature thresholds
+- 🔄 Smooth speed transitions
+- 🐛 Debug mode for troubleshooting
+- 🛡️ Safe shutdown handling
+
+[View Documentation →](argon-fan-addon/README.md)
 
 ## Installation
 
@@ -55,7 +72,13 @@ home-assistant-addons/
 │   ├── config.yaml            # Add-on configuration
 │   ├── README.md              # Add-on documentation
 │   └── ...                    # Other add-on files
-├── [future-addon]/            # Additional add-ons...
+├── argon-fan-addon/           # Argon ONE Active Cooling Add-on
+│   ├── argon_fan.py           # Fan control script
+│   ├── run.sh                 # Entry point
+│   ├── Dockerfile             # Docker configuration
+│   ├── config.yaml            # Add-on configuration
+│   ├── README.md              # Add-on documentation
+│   └── ...                    # Other add-on files
 └── repository.json            # Repository configuration
 ```
 
@@ -70,3 +93,4 @@ MIT License - See [LICENSE](argon-oled-addon/LICENSE) for details
 ## Credits
 
 - Argon ONE OLED Display: Based on setup scripts from [Argon40](https://www.argon40.com/)
+- Argon ONE Active Cooling: Based on [Jeff Curless's argoneon scripts](https://github.com/JeffCurless/argoneon) and [Argon40](https://www.argon40.com/)
