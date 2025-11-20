@@ -12,15 +12,21 @@ RUN apk add --no-cache \
     bash \
     py3-pillow
 
-# Install Python packages
+# Install build dependencies temporarily for RPi.GPIO compilation
+RUN apk add --no-cache --virtual .build-deps \
+    python3-dev \
+    gcc \
+    musl-dev \
+    linux-headers \
+ && pip3 install --no-cache-dir RPi.GPIO \
+ && apk del .build-deps
+
+# Install remaining Python packages
 RUN pip3 install --no-cache-dir \
     smbus2 \
     requests \
     cbor2 \
     qrcode
-
-# Note: RPi.GPIO is not installed due to compilation issues with musl in the base image.
-# The button functionality will be disabled, but all display features will work.
 
 # Install luma packages using system Pillow
 RUN pip3 install --no-cache-dir --no-deps luma.core luma.oled

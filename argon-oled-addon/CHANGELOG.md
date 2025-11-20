@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.5] - 2025-11-20
+
+### Changed
+- Updated base images from 9.1.7 to 19.0.0 (latest)
+- Will retry RPi.GPIO compilation with newer base image
+
 ## [1.6.4] - 2025-11-20
 
 ### Changed
