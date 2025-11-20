@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.7] - 2025-11-20
+
+### Fixed
+- GPIO initialization now tries multiple gpiochip devices (gpiochip0, gpiochip4, gpiochip1)
+- Removed duplicate logo loading code that was causing infinite loop log spam
+- Logo loading now only happens once in load_logo() method
+
 ## [1.6.6] - 2025-11-20
 
 ### Changed

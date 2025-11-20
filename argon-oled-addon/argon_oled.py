@@ -66,17 +66,25 @@ class ArgonOLED:
         self.gpio_chip = None
         self.gpio_line = None
         if GPIO_AVAILABLE:
-            try:
-                self.gpio_chip = gpiod.Chip('gpiochip0')
-                self.gpio_line = self.gpio_chip.get_line(PIN_BUTTON)
-                self.gpio_line.request(consumer="argon_oled", type=gpiod.LINE_REQ_EV_RISING_EDGE)
-                self.debug_log(f"GPIO initialized successfully on pin {PIN_BUTTON}")
-            except Exception as e:
-                self.debug_log(f"Failed to initialize GPIO: {e}")
-                if self.gpio_chip:
-                    self.gpio_chip.close()
-                self.gpio_chip = None
-                self.gpio_line = None
+            # Try different gpiochip devices
+            for chip_name in ['gpiochip0', 'gpiochip4', 'gpiochip1']:
+                try:
+                    self.gpio_chip = gpiod.Chip(chip_name)
+                    self.gpio_line = self.gpio_chip.get_line(PIN_BUTTON)
+                    self.gpio_line.request(consumer="argon_oled", type=gpiod.LINE_REQ_EV_RISING_EDGE)
+                    self.debug_log(f"GPIO initialized successfully on {chip_name} pin {PIN_BUTTON}")
+                    break
+                except Exception as e:
+                    if self.gpio_chip:
+                        try:
+                            self.gpio_chip.close()
+                        except:
+                            pass
+                    self.gpio_chip = None
+                    self.gpio_line = None
+                    if 'gpiochip1' in chip_name:  # Last attempt
+                        self.debug_log(f"Failed to initialize GPIO: {e}")
+                        self.debug_log("Button functionality will be disabled")
     
     def debug_log(self, message):
         """Print debug message if debug logging is enabled"""
