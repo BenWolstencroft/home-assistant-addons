@@ -776,20 +776,10 @@ class ArgonOLED:
                         if total_hold >= 15.0 and self.power_management_enabled:
                             self.debug_log("Button released after 15+ seconds - shutdown selected")
                             
-                            # Wait for button to be released first
-                            self.debug_log("Waiting for button release before confirmation...")
-                            while True:
-                                try:
-                                    if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 1:
-                                        break
-                                except:
-                                    pass
-                                time.sleep(0.05)
-                            
-                            time.sleep(0.2)  # Debounce
-                            
                             # Confirmation countdown with cancel option
                             cancelled = False
+                            button_was_released = False
+                            
                             for countdown in range(5, 0, -1):
                                 # Draw countdown with progress bar
                                 with canvas(self.device) as draw:
@@ -803,18 +793,24 @@ class ArgonOLED:
                                     draw.rectangle((5, 57, 122, 62), outline=255)
                                     draw.rectangle((5, 57, 5 + bar_width, 62), fill=255)
                                 
-                                # Check for button press to cancel
+                                # Check for button press to cancel (wait for release then press)
                                 for _ in range(10):  # Check 10 times per second
                                     try:
-                                        if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 0:
-                                            self.debug_log("Shutdown cancelled by button press")
-                                            cancelled = True
-                                            self.button_in_power_hold = False  # Resume screen rotation
-                                            with canvas(self.device) as draw:
-                                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
-                                                draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
-                                            time.sleep(2)
-                                            break
+                                        if self.gpio_line:
+                                            button_state = self.gpio_line.get_value(PIN_BUTTON)
+                                            # Track when button is released
+                                            if button_state == 1:
+                                                button_was_released = True
+                                            # Detect new press after release
+                                            elif button_state == 0 and button_was_released:
+                                                self.debug_log("Shutdown cancelled by button press")
+                                                cancelled = True
+                                                self.button_in_power_hold = False  # Resume screen rotation
+                                                with canvas(self.device) as draw:
+                                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                                    draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
+                                                time.sleep(2)
+                                                break
                                     except:
                                         pass
                                     time.sleep(0.1)
@@ -875,20 +871,10 @@ class ArgonOLED:
                         elif total_hold >= 10.0 and self.power_management_enabled:
                             self.debug_log("Button released after 10+ seconds - reboot selected")
                             
-                            # Wait for button to be released first
-                            self.debug_log("Waiting for button release before confirmation...")
-                            while True:
-                                try:
-                                    if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 1:
-                                        break
-                                except:
-                                    pass
-                                time.sleep(0.05)
-                            
-                            time.sleep(0.2)  # Debounce
-                            
                             # Confirmation countdown with cancel option
                             cancelled = False
+                            button_was_released = False
+                            
                             for countdown in range(5, 0, -1):
                                 # Draw countdown with progress bar
                                 with canvas(self.device) as draw:
@@ -902,18 +888,24 @@ class ArgonOLED:
                                     draw.rectangle((5, 57, 122, 62), outline=255)
                                     draw.rectangle((5, 57, 5 + bar_width, 62), fill=255)
                                 
-                                # Check for button press to cancel
+                                # Check for button press to cancel (wait for release then press)
                                 for _ in range(10):  # Check 10 times per second
                                     try:
-                                        if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 0:
-                                            self.debug_log("Reboot cancelled by button press")
-                                            cancelled = True
-                                            self.button_in_power_hold = False  # Resume screen rotation
-                                            with canvas(self.device) as draw:
-                                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
-                                                draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
-                                            time.sleep(2)
-                                            break
+                                        if self.gpio_line:
+                                            button_state = self.gpio_line.get_value(PIN_BUTTON)
+                                            # Track when button is released
+                                            if button_state == 1:
+                                                button_was_released = True
+                                            # Detect new press after release
+                                            elif button_state == 0 and button_was_released:
+                                                self.debug_log("Reboot cancelled by button press")
+                                                cancelled = True
+                                                self.button_in_power_hold = False  # Resume screen rotation
+                                                with canvas(self.device) as draw:
+                                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                                    draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
+                                                time.sleep(2)
+                                                break
                                     except:
                                         pass
                                     time.sleep(0.1)

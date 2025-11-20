@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.3] - 2025-11-20
+
+### Fixed
+- Improved cancel detection logic during confirmation countdown
+- Cancel now works by detecting button release then press pattern
+- Countdown displays immediately without waiting
+
 ## [1.10.2] - 2025-11-20
 
 ### Fixed
