@@ -110,10 +110,117 @@ class SupervisorAPI:
             return response.json().get('data', {}).get('backups', [])
         return []
     
+    def get_ip_address(self):
+        """Get host IP address from Supervisor API"""
+        try:
+            network_info = self.get_network_info()
+            interfaces = network_info.get('interfaces', [])
+            
+            # Try to get the primary interface IP
+            for interface in interfaces:
+                if interface.get('primary', False):
+                    ipv4 = interface.get('ipv4', {})
+                    addresses = ipv4.get('address', [])
+                    if addresses:
+                        # Return the first address without CIDR notation
+                        ip = addresses[0].split('/')[0]
+                        return ip
+            
+            # Fallback: get any non-docker interface
+            for interface in interfaces:
+                if not interface.get('interface', '').startswith('docker'):
+                    ipv4 = interface.get('ipv4', {})
+                    addresses = ipv4.get('address', [])
+                    if addresses:
+                        ip = addresses[0].split('/')[0]
+                        return ip
+        except Exception as e:
+            self._log(f"Could not get IP from Supervisor API: {e}")
+        
+        # Final fallback to socket method
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except:
+            return "No Network"
+    
+    def get_ha_url(self):
+        """Get Home Assistant URL"""
+        try:
+            # Try to get configured URL from homeassistant
+            ha_info = self.get_homeassistant_info()
+            
+            # Check for external/internal URL in the config
+            external_url = ha_info.get('external_url')
+            internal_url = ha_info.get('internal_url')
+            
+            if external_url:
+                return external_url
+            if internal_url:
+                return internal_url
+        except Exception as e:
+            self._log(f"Could not get HA URL from API: {e}")
+        
+        # Fallback to IP-based URL using host IP
+        ip = self.get_ip_address()
+        if ip != "No Network":
+            return f"http://{ip}:8123"
+        
+        return None
+    
+    def get_ha_system_status(self):
+        """Get Home Assistant system status information"""
+        status_info = {
+            'updates': 0,
+            'repairs': 0,
+            'last_backup': None,
+            'backup_state': 'Unknown'
+        }
+        
+        try:
+            # Get supervisor updates
+            supervisor_info = self.get_supervisor_info()
+            if supervisor_info.get('update_available', False):
+                status_info['updates'] += 1
+            
+            # Get core updates
+            core_info = self.get_core_info()
+            if core_info.get('update_available', False):
+                status_info['updates'] += 1
+            
+            # Get addon updates
+            addons = self.get_addons()
+            for addon in addons:
+                if addon.get('update_available', False):
+                    status_info['updates'] += 1
+            
+            # Get backup info
+            backups = self.get_backups()
+            self._log(f"Found {len(backups)} backups")
+            if backups:
+                # Sort by date and get most recent
+                sorted_backups = sorted(backups, key=lambda x: x.get('date', ''), reverse=True)
+                latest = sorted_backups[0]
+                self._log(f"Latest backup data: {latest}")
+                status_info['last_backup'] = latest.get('date', 'Unknown')
+                status_info['backup_state'] = 'OK'
+            else:
+                status_info['backup_state'] = 'None'
+        except Exception as e:
+            self._log(f"Error getting HA system status: {e}")
+        
+        return status_info
+    
     def reboot_host(self):
         """Reboot the host system"""
-        return self.request('host/reboot', method='POST', timeout=10)
+        response = self.request('host/reboot', method='POST', timeout=10)
+        return response is not None and response.status_code in [200, 202]
     
     def shutdown_host(self):
         """Shutdown the host system"""
-        return self.request('host/shutdown', method='POST', timeout=10)
+        response = self.request('host/shutdown', method='POST', timeout=10)
+        return response is not None and response.status_code in [200, 202]

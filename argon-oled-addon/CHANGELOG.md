@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.2] - 2025-11-20
+
+### Added
+- Comprehensive unit test suite for all modules (system_info, supervisor_api, screens)
+- 100+ test cases covering success and error scenarios
+- Tests work without physical hardware using mocks
+- Cross-platform test support (Windows, Linux, Mac)
+- Tests organized in dedicated `tests/` subfolder
+- Test runner script and documentation (README_TESTING.md)
+
+### Technical
+- All hardware dependencies (OLED, GPIO, I2C) are mocked in tests
+- HTTP requests to Supervisor API are mocked
+- File system operations are simulated
+- Tests can run on development machines without Raspberry Pi
+
 ## [1.13.1] - 2025-11-20
 
 ### Fixed
