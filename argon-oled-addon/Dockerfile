@@ -12,22 +12,15 @@ RUN apk add --no-cache \
     bash \
     py3-pillow
 
-# Upgrade musl to fix version conflict, then install build dependencies
-RUN apk upgrade --no-cache musl \
- && apk add --no-cache --virtual .build-deps \
-    python3-dev \
-    gcc \
-    musl-dev \
-    linux-headers \
- && pip3 install --no-cache-dir RPi.GPIO \
- && apk del .build-deps
-
-# Install remaining Python packages
+# Install Python packages
 RUN pip3 install --no-cache-dir \
     smbus2 \
     requests \
     cbor2 \
     qrcode
+
+# Note: RPi.GPIO is not installed due to compilation issues with musl in the base image.
+# The button functionality will be disabled, but all display features will work.
 
 # Install luma packages using system Pillow
 RUN pip3 install --no-cache-dir --no-deps luma.core luma.oled

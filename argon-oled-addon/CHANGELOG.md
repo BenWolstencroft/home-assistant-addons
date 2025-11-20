@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.4] - 2025-11-20
+
+### Changed
+- Temporarily disabled button functionality due to RPi.GPIO compilation issues with musl in base image
+- All display features continue to work normally with auto-rotation
+- Button support will be re-enabled when compatible build environment is available
+
 ## [1.6.3] - 2025-11-20
 
 ### Fixed
