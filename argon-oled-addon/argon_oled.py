@@ -709,7 +709,16 @@ class ArgonOLED:
                                     draw.text((10, 20), "SHUTDOWN", fill="white", font=self.font_large)
                                     draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
                                 time.sleep(2)
-                                os.system('hassio host shutdown')
+                                # Use Supervisor API to shutdown
+                                try:
+                                    supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
+                                    requests.post(
+                                        'http://supervisor/host/shutdown',
+                                        headers={'Authorization': f'Bearer {supervisor_token}'},
+                                        timeout=10
+                                    )
+                                except Exception as e:
+                                    print(f"Shutdown error: {e}")
                                 sys.exit(0)
                             
                             # Reboot if held for 10+ seconds
@@ -723,7 +732,16 @@ class ArgonOLED:
                                     draw.text((15, 20), "REBOOTING", fill="white", font=self.font_large)
                                     draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
                                 time.sleep(2)
-                                os.system('hassio host reboot')
+                                # Use Supervisor API to reboot
+                                try:
+                                    supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
+                                    requests.post(
+                                        'http://supervisor/host/reboot',
+                                        headers={'Authorization': f'Bearer {supervisor_token}'},
+                                        timeout=10
+                                    )
+                                except Exception as e:
+                                    print(f"Reboot error: {e}")
                                 sys.exit(0)
                             
                             time.sleep(0.1)

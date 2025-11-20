@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1] - 2025-11-20
+
+### Fixed
+- Fixed reboot/shutdown commands to use Home Assistant Supervisor API instead of shell commands
+- Changed from `hassio host reboot/shutdown` to proper API calls at `http://supervisor/host/reboot` and `http://supervisor/host/shutdown`
+- Added error handling for API calls
+
 ## [1.9.0] - 2025-11-20
 
 ### Added
