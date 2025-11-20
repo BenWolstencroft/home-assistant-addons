@@ -776,6 +776,18 @@ class ArgonOLED:
                         if total_hold >= 15.0 and self.power_management_enabled:
                             self.debug_log("Button released after 15+ seconds - shutdown selected")
                             
+                            # Wait for button to be released first
+                            self.debug_log("Waiting for button release before confirmation...")
+                            while True:
+                                try:
+                                    if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 1:
+                                        break
+                                except:
+                                    pass
+                                time.sleep(0.05)
+                            
+                            time.sleep(0.2)  # Debounce
+                            
                             # Confirmation countdown with cancel option
                             cancelled = False
                             for countdown in range(5, 0, -1):
@@ -862,6 +874,18 @@ class ArgonOLED:
                         
                         elif total_hold >= 10.0 and self.power_management_enabled:
                             self.debug_log("Button released after 10+ seconds - reboot selected")
+                            
+                            # Wait for button to be released first
+                            self.debug_log("Waiting for button release before confirmation...")
+                            while True:
+                                try:
+                                    if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 1:
+                                        break
+                                except:
+                                    pass
+                                time.sleep(0.05)
+                            
+                            time.sleep(0.2)  # Debounce
                             
                             # Confirmation countdown with cancel option
                             cancelled = False

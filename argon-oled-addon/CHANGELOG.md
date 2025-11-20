@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.2] - 2025-11-20
+
+### Fixed
+- Cancel button now works correctly during confirmation countdown
+- Added button release detection before countdown starts
+- Added debounce delay to prevent false triggers
+
 ## [1.10.1] - 2025-11-20
 
 ### Fixed
