@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2] - 2025-11-20
+
+### Fixed
+- Docker build issue: restructured build process to use virtual packages, avoiding musl version conflicts
+- Build dependencies are now installed temporarily and removed after RPi.GPIO compilation
+
 ## [1.6.1] - 2025-11-20
 
 ### Fixed

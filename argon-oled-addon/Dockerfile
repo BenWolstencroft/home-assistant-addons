@@ -10,18 +10,23 @@ RUN apk add --no-cache \
     py3-pip \
     i2c-tools \
     bash \
-    py3-pillow \
+    py3-pillow
+
+# Install build dependencies and Python packages that need compilation
+RUN apk add --no-cache --virtual .build-deps \
     python3-dev \
     gcc \
-    musl-dev
+    musl-dev \
+    linux-headers \
+ && pip3 install --no-cache-dir RPi.GPIO \
+ && apk del .build-deps
 
-# Install Python packages
+# Install remaining Python packages
 RUN pip3 install --no-cache-dir \
     smbus2 \
     requests \
     cbor2 \
-    qrcode \
-    RPi.GPIO
+    qrcode
 
 # Install luma packages using system Pillow
 RUN pip3 install --no-cache-dir --no-deps luma.core luma.oled
