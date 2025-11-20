@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.0] - 2025-11-20
+
+### Changed
+- Major code refactoring and modularization
+- Extracted system metrics into `system_info.py` module
+- Extracted Supervisor API communication into `supervisor_api.py` module
+- Extracted all screen rendering logic into `screens.py` module
+- Created helper methods to reduce code duplication (~200 lines saved)
+- Improved button cancel detection during reboot/shutdown confirmation
+- Screen rotation now pauses during power hold and confirmation
+- Better error handling and debug logging throughout
+
+### Added
+- Reboot/shutdown confirmation countdown with visual progress bar
+- Cancel functionality during 5-second confirmation period
+- Button state tracking to prevent accidental power commands
+- Module documentation in MODULARIZATION.md
+
+### Fixed
+- Cancel button now works correctly during power confirmation
+- Screen no longer flickers during confirmation countdown
+- Button detection uses correct Value.ACTIVE/INACTIVE constants
+
 ## [1.11.1] - 2025-11-20
 
 ### Changed
