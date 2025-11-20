@@ -22,12 +22,19 @@ try:
 except ImportError:
     SMBUS_AVAILABLE = False
 
+try:
+    import RPi.GPIO as GPIO
+    GPIO_AVAILABLE = True
+except ImportError:
+    GPIO_AVAILABLE = False
+
 # Configuration
 I2C_BUS = 1
 I2C_ADDRESS = 0x3C
 SCREEN_WIDTH = 128
 SCREEN_HEIGHT = 64
 SWITCH_DURATION = 30  # seconds between screens
+PIN_BUTTON = 4  # BCM Pin 4 for button
 
 # Home Assistant API
 SUPERVISOR_TOKEN = os.environ.get('SUPERVISOR_TOKEN', '')
@@ -53,6 +60,17 @@ class ArgonOLED:
         self.debug_logging = debug_logging
         self.current_screen = 0
         self.last_switch = time.time()
+        self.button_action = None  # For button press communication
+        
+        # Initialize GPIO for button if available
+        if GPIO_AVAILABLE:
+            try:
+                GPIO.setwarnings(False)
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setup(PIN_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+                self.debug_log("GPIO button monitoring initialized on pin 4")
+            except Exception as e:
+                self.debug_log(f"Could not initialize GPIO: {e}")
     
     def debug_log(self, message):
         """Print debug message if debug logging is enabled"""
@@ -614,12 +632,73 @@ class ArgonOLED:
         
         self.device.display(img)
     
+    def button_monitor(self):
+        """Monitor button presses in separate thread"""
+        if not GPIO_AVAILABLE:
+            return
+        
+        self.debug_log("Button monitor thread started")
+        last_press_time = 0
+        press_count = 0
+        
+        try:
+            while True:
+                # Wait for button press (rising edge)
+                GPIO.wait_for_edge(PIN_BUTTON, GPIO.RISING)
+                press_start = time.time()
+                
+                # Measure pulse width
+                time.sleep(0.01)
+                pulsetime = 0
+                while GPIO.input(PIN_BUTTON) == GPIO.HIGH:
+                    time.sleep(0.01)
+                    pulsetime += 1
+                
+                press_end = time.time()
+                
+                # Check if this is part of a double press (within 0.5 seconds)
+                if press_end - last_press_time < 0.5:
+                    press_count += 1
+                else:
+                    press_count = 1
+                
+                last_press_time = press_end
+                
+                # Wait a bit to see if another press comes
+                time.sleep(0.3)
+                
+                # Determine action based on pulse time and press count
+                if press_count >= 2:
+                    # Double press - go back
+                    self.debug_log("Button: Double press detected - previous screen")
+                    self.button_action = "prev"
+                    press_count = 0
+                elif pulsetime >= 6:
+                    # Long press - go to first screen
+                    self.debug_log("Button: Long press detected - first screen")
+                    self.button_action = "first"
+                    press_count = 0
+                elif press_count == 1:
+                    # Single press - next screen
+                    self.debug_log("Button: Single press detected - next screen")
+                    self.button_action = "next"
+                    press_count = 0
+                
+        except Exception as e:
+            self.debug_log(f"Button monitor error: {e}")
+    
     def run(self):
         """Main loop"""
         self.debug_log(f"Starting Argon OLED Display")
         self.debug_log(f"Screen rotation: {' -> '.join(self.screen_list)}")
         self.debug_log(f"Switch duration: {self.switch_duration}s")
         self.debug_log(f"Temperature unit: {self.temp_unit}")
+        
+        # Start button monitoring thread if GPIO is available
+        if GPIO_AVAILABLE:
+            button_thread = threading.Thread(target=self.button_monitor, daemon=True)
+            button_thread.start()
+            self.debug_log("Button monitoring thread started")
         
         loop_count = 0
         try:
@@ -631,8 +710,19 @@ class ArgonOLED:
                 loop_count += 1
                 current_time = time.time()
                 
+                # Check for button actions
+                if self.button_action:
+                    if self.button_action == "next":
+                        self.current_screen = (self.current_screen + 1) % len(self.screen_list)
+                    elif self.button_action == "prev":
+                        self.current_screen = (self.current_screen - 1) % len(self.screen_list)
+                    elif self.button_action == "first":
+                        self.current_screen = 0
+                    self.button_action = None
+                    self.last_switch = current_time
+                
                 # Switch screen if needed (auto-rotation)
-                if current_time - self.last_switch >= self.switch_duration:
+                elif current_time - self.last_switch >= self.switch_duration:
                     self.current_screen = (self.current_screen + 1) % len(self.screen_list)
                     self.last_switch = current_time
                 

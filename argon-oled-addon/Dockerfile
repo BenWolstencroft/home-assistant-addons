@@ -17,7 +17,8 @@ RUN pip3 install --no-cache-dir \
     smbus2 \
     requests \
     cbor2 \
-    qrcode
+    qrcode \
+    RPi.GPIO
 
 # Install luma packages using system Pillow
 RUN pip3 install --no-cache-dir --no-deps luma.core luma.oled

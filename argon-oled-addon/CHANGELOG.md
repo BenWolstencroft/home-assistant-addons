@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2025-11-20
+
+### Added
+- Physical button support on GPIO pin 4
+- Single press: advance to next screen
+- Double press: go back to previous screen
+- Long press: return to first screen
+- Button presses reset auto-rotation timer
+
+### Dependencies
+- Added RPi.GPIO for button monitoring
+- Enabled GPIO access in addon configuration
+
 ## [1.5.3] - 2025-11-20
 
 ### Added
