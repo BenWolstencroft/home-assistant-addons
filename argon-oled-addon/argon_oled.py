@@ -805,13 +805,13 @@ class ArgonOLED:
                                             if countdown == 5 and i < 3:
                                                 self.debug_log(f"Button state: {button_state}, released: {button_was_released}")
                                             
-                                            # Track when button is released
-                                            if button_state == 1:
+                                            # Track when button is released (Value.ACTIVE = released)
+                                            if button_state == Value.ACTIVE:
                                                 if not button_was_released:
                                                     self.debug_log("Button released, ready to detect cancel press")
                                                 button_was_released = True
-                                            # Detect new press after release
-                                            elif button_state == 0 and button_was_released:
+                                            # Detect new press after release (Value.INACTIVE = pressed)
+                                            elif button_state == Value.INACTIVE and button_was_released:
                                                 self.debug_log("Shutdown cancelled by button press")
                                                 cancelled = True
                                                 self.button_in_power_hold = False  # Resume screen rotation
@@ -909,13 +909,13 @@ class ArgonOLED:
                                             if countdown == 5 and i < 3:
                                                 self.debug_log(f"Button state: {button_state}, released: {button_was_released}")
                                             
-                                            # Track when button is released
-                                            if button_state == 1:
+                                            # Track when button is released (Value.ACTIVE = released)
+                                            if button_state == Value.ACTIVE:
                                                 if not button_was_released:
                                                     self.debug_log("Button released, ready to detect cancel press")
                                                 button_was_released = True
-                                            # Detect new press after release
-                                            elif button_state == 0 and button_was_released:
+                                            # Detect new press after release (Value.INACTIVE = pressed)
+                                            elif button_state == Value.INACTIVE and button_was_released:
                                                 self.debug_log("Reboot cancelled by button press")
                                                 cancelled = True
                                                 self.button_in_power_hold = False  # Resume screen rotation

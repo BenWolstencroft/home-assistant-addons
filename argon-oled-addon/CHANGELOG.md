@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.5] - 2025-11-20
+
+### Fixed
+- Button cancel detection now uses correct Value.ACTIVE/INACTIVE constants
+- Cancel button should now work properly during confirmation countdown
+
 ## [1.10.4] - 2025-11-20
 
 ### Added
