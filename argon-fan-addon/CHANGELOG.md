@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2025-11-20
+
+### Fixed
+- Fixed Docker build error with pip installation in Python 3.12+ by adding `--break-system-packages` flag
+- Resolved PEP 668 externally-managed-environment error during addon installation
+
 ## [1.0.0] - 2025-11-20
 
 ### Added

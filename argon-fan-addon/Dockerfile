@@ -12,7 +12,7 @@ RUN apk add --no-cache \
     bash
 
 # Install Python packages for I2C communication
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir --break-system-packages \
     smbus2
 
 # Copy data
