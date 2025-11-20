@@ -24,9 +24,12 @@ except ImportError:
 
 try:
     import gpiod
+    from gpiod.line import Direction, Value
     GPIO_AVAILABLE = True
 except ImportError:
     GPIO_AVAILABLE = False
+    Direction = None
+    Value = None
 
 # Configuration
 I2C_BUS = 1
@@ -78,48 +81,28 @@ class ArgonOLED:
             # Try each available GPIO chip
             for chip_path in gpio_chips:
                 try:
-                    print(f"Trying to open {chip_path}...")
-                    self.gpio_chip = gpiod.Chip(chip_path)
-                    print(f"Successfully opened {chip_path}")
+                    print(f"Trying to request line {PIN_BUTTON} on {chip_path}...")
                     
-                    # Try to request the button line - py3-libgpiod v2 API
-                    try:
-                        # Create line request configuration
-                        line_cfg = gpiod.line_request()
-                        line_cfg.consumer = "argon_oled"
-                        line_cfg.request_type = gpiod.line_request.DIRECTION_INPUT
-                        
-                        # Request line 4
-                        self.gpio_line = self.gpio_chip.request_lines(line_cfg, [PIN_BUTTON])
-                        print(f"GPIO initialized successfully on {chip_path} pin {PIN_BUTTON}")
-                        
-                        # Test reading the line
-                        vals = self.gpio_line.get_values([PIN_BUTTON])
-                        print(f"Button initial state on pin {PIN_BUTTON}: {vals[0]}")
-                        break
-                    except AttributeError as attr_error:
-                        print(f"API error on {chip_path}: {attr_error}")
-                        print(f"Available methods: {[m for m in dir(self.gpio_chip) if not m.startswith('_')]}")
-                        if self.gpio_chip:
-                            self.gpio_chip.close()
-                        self.gpio_chip = None
-                        self.gpio_line = None
-                        break  # Stop trying if API is incompatible
-                    except Exception as line_error:
-                        print(f"Pin {PIN_BUTTON} not available on {chip_path}: {line_error}")
-                        if self.gpio_chip:
-                            self.gpio_chip.close()
-                        self.gpio_chip = None
-                        self.gpio_line = None
+                    # Use gpiod.request_lines() with LineSettings
+                    self.gpio_line = gpiod.request_lines(
+                        chip_path,
+                        consumer="argon_oled",
+                        config={
+                            PIN_BUTTON: gpiod.LineSettings(
+                                direction=Direction.INPUT,
+                                bias=gpiod.line.Bias.PULL_UP
+                            )
+                        },
+                    )
+                    print(f"GPIO initialized successfully on {chip_path} pin {PIN_BUTTON}")
+                    
+                    # Test reading the line
+                    val = self.gpio_line.get_value(PIN_BUTTON)
+                    print(f"Button initial state: {val}")
+                    break
                         
                 except Exception as e:
-                    print(f"Failed to open {chip_path}: {e}")
-                    if self.gpio_chip:
-                        try:
-                            self.gpio_chip.close()
-                        except:
-                            pass
-                    self.gpio_chip = None
+                    print(f"Failed to request line on {chip_path}: {e}")
                     self.gpio_line = None
             
             if not self.gpio_line:
@@ -698,20 +681,18 @@ class ArgonOLED:
         
         try:
             while True:
-                # Poll for button state changes (py3-libgpiod v2 API)
+                # Poll for button state changes
                 try:
                     # Read the current value
-                    vals = self.gpio_line.get_values([PIN_BUTTON])
-                    current_val = vals[0]
+                    current_val = self.gpio_line.get_value(PIN_BUTTON)
                     
-                    # Detect press (assuming active low with pull-up)
-                    if current_val == 0:  # Button pressed
+                    # Detect press (Value.ACTIVE = 1, Value.INACTIVE = 0 with pull-up, so pressed = 0)
+                    if current_val == Value.INACTIVE:  # Button pressed (active low)
                         press_start = time.time()
                         
                         # Wait for release
                         while True:
-                            vals = self.gpio_line.get_values([PIN_BUTTON])
-                            if vals[0] == 1:  # Released
+                            if self.gpio_line.get_value(PIN_BUTTON) == Value.ACTIVE:  # Released
                                 break
                             time.sleep(0.01)
                         

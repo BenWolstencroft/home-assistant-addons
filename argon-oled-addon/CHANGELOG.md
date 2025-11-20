@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2025-11-20
+
+### Fixed
+- Implemented correct gpiod v2 API based on official documentation
+- Use module-level gpiod.request_lines() instead of Chip.request_lines()
+- Import Direction, Value, and Bias from gpiod.line
+- Use LineSettings with direction=Direction.INPUT and bias=Bias.PULL_UP
+- Use get_value(PIN) instead of get_values([PIN])
+- Properly handle Value.ACTIVE and Value.INACTIVE for button state
+
+## [1.7.5] - 2025-11-20
+
+### Changed
+- Print all available gpiod module attributes for debugging
+- Try config dict approach for request_lines instead of line_request object
+
 ## [1.7.4] - 2025-11-20
 
 ### Fixed
