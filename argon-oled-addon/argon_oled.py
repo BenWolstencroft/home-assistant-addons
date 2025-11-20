@@ -82,17 +82,20 @@ class ArgonOLED:
                     self.gpio_chip = gpiod.Chip(chip_path)
                     print(f"Successfully opened {chip_path}")
                     
-                    # Try to get the button line - py3-libgpiod uses different API
+                    # Try to request the button line - py3-libgpiod v2 API
                     try:
-                        # Try to request line 4 with input direction and pull-up
-                        lines = self.gpio_chip.get_lines([PIN_BUTTON])
-                        lines.request(consumer="argon_oled", type=gpiod.LINE_REQ_DIR_IN, flags=gpiod.LINE_REQ_FLAG_BIAS_PULL_UP)
-                        self.gpio_line = lines
+                        # Create line request configuration
+                        line_cfg = gpiod.line_request()
+                        line_cfg.consumer = "argon_oled"
+                        line_cfg.request_type = gpiod.line_request.DIRECTION_INPUT
+                        
+                        # Request line 4
+                        self.gpio_line = self.gpio_chip.request_lines(line_cfg, [PIN_BUTTON])
                         print(f"GPIO initialized successfully on {chip_path} pin {PIN_BUTTON}")
                         
                         # Test reading the line
-                        vals = self.gpio_line.get_values()
-                        print(f"Button initial state: {vals[0]}")
+                        vals = self.gpio_line.get_values([PIN_BUTTON])
+                        print(f"Button initial state on pin {PIN_BUTTON}: {vals[0]}")
                         break
                     except AttributeError as attr_error:
                         print(f"API error on {chip_path}: {attr_error}")
@@ -695,10 +698,10 @@ class ArgonOLED:
         
         try:
             while True:
-                # Poll for button state changes (py3-libgpiod doesn't have event_wait)
+                # Poll for button state changes (py3-libgpiod v2 API)
                 try:
                     # Read the current value
-                    vals = self.gpio_line.get_values()
+                    vals = self.gpio_line.get_values([PIN_BUTTON])
                     current_val = vals[0]
                     
                     # Detect press (assuming active low with pull-up)
@@ -707,7 +710,7 @@ class ArgonOLED:
                         
                         # Wait for release
                         while True:
-                            vals = self.gpio_line.get_values()
+                            vals = self.gpio_line.get_values([PIN_BUTTON])
                             if vals[0] == 1:  # Released
                                 break
                             time.sleep(0.01)

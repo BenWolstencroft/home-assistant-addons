@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.4] - 2025-11-20
+
+### Fixed
+- Updated to use libgpiod v2 API (request_lines, line_request configuration)
+- Changed from get_lines() to request_lines() with line_request config
+- Updated button monitor to pass pin number to get_values()
+
 ## [1.7.3] - 2025-11-20
 
 ### Added
