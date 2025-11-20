@@ -88,7 +88,7 @@ class ArgonFanController:
     def init_i2c(self):
         """Initialize I2C bus communication"""
         # Try to find the correct I2C bus
-        for bus_num in [1, 0, 3, 10, 11, 22]:
+        for bus_num in [1, 0, 13, 14, 3, 10, 11, 22]:
             try:
                 test_bus = smbus.SMBus(bus_num)
                 # Try to read from the Argon device

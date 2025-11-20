@@ -31,11 +31,22 @@ fi
 
 # Test I2C communication
 if command -v i2cdetect &> /dev/null; then
-    bashio::log.info "Scanning I2C bus for Argon ONE device (0x1a)..."
-    if i2cdetect -y 1 2>/dev/null | grep -q " 1a "; then
-        bashio::log.info "✓ Argon ONE device detected at address 0x1a"
-    else
-        bashio::log.warning "⚠ Argon ONE device not detected at expected address 0x1a"
+    bashio::log.info "Scanning I2C buses for Argon ONE device (0x1a)..."
+    
+    DEVICE_FOUND=false
+    for i2c_bus in /dev/i2c-*; do
+        bus_num=${i2c_bus#/dev/i2c-}
+        bashio::log.info "Scanning bus ${bus_num}..."
+        
+        if i2cdetect -y ${bus_num} 2>/dev/null | grep -q " 1a "; then
+            bashio::log.info "✓ Argon ONE device detected on bus ${bus_num} at address 0x1a"
+            DEVICE_FOUND=true
+        fi
+    done
+    
+    if [ "$DEVICE_FOUND" = false ]; then
+        bashio::log.warning "⚠ Argon ONE device not detected on any I2C bus"
+        bashio::log.warning "Expected address: 0x1a"
         bashio::log.warning "The addon will still attempt to communicate with the device"
     fi
 fi

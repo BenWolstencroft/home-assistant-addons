@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2025-11-20
+
+### Fixed
+- Added I2C buses 13 and 14 to automatic detection list
+- Improved I2C bus scanning to check all available buses (prioritizing 1, 0, 13, 14)
+- Enhanced run.sh startup script to scan and report which bus has the Argon device
+
+### Changed
+- Bus detection order now: 1, 0, 13, 14, 3, 10, 11, 22 (most common first)
+- Run script now scans all I2C buses and reports findings before starting service
+
 ## [1.0.2] - 2025-11-20
 
 ### Fixed
