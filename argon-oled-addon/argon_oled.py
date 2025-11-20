@@ -81,19 +81,31 @@ class ArgonOLED:
                     print(f"Trying to open {chip_path}...")
                     self.gpio_chip = gpiod.Chip(chip_path)
                     print(f"Successfully opened {chip_path}")
-                    print(f"Chip has {self.gpio_chip.num_lines()} lines")
                     
                     # Try to get the button line - py3-libgpiod uses different API
                     try:
-                        # Alpine's py3-libgpiod uses get_lines() or line_offset
+                        # Try to request line 4 with input direction and pull-up
                         lines = self.gpio_chip.get_lines([PIN_BUTTON])
                         lines.request(consumer="argon_oled", type=gpiod.LINE_REQ_DIR_IN, flags=gpiod.LINE_REQ_FLAG_BIAS_PULL_UP)
                         self.gpio_line = lines
                         print(f"GPIO initialized successfully on {chip_path} pin {PIN_BUTTON}")
+                        
+                        # Test reading the line
+                        vals = self.gpio_line.get_values()
+                        print(f"Button initial state: {vals[0]}")
                         break
+                    except AttributeError as attr_error:
+                        print(f"API error on {chip_path}: {attr_error}")
+                        print(f"Available methods: {[m for m in dir(self.gpio_chip) if not m.startswith('_')]}")
+                        if self.gpio_chip:
+                            self.gpio_chip.close()
+                        self.gpio_chip = None
+                        self.gpio_line = None
+                        break  # Stop trying if API is incompatible
                     except Exception as line_error:
                         print(f"Pin {PIN_BUTTON} not available on {chip_path}: {line_error}")
-                        self.gpio_chip.close()
+                        if self.gpio_chip:
+                            self.gpio_chip.close()
                         self.gpio_chip = None
                         self.gpio_line = None
                         

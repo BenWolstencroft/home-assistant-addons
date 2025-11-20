@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.3] - 2025-11-20
+
+### Added
+- API introspection to list available methods on gpiod.Chip object for debugging
+- Will print available API methods if AttributeError occurs
+
 ## [1.7.2] - 2025-11-20
 
 ### Fixed
