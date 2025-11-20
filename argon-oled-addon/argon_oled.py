@@ -690,11 +690,43 @@ class ArgonOLED:
                     if current_val == Value.INACTIVE:  # Button pressed (active low)
                         press_start = time.time()
                         
-                        # Wait for release
+                        # Wait for release or check for long holds
                         while True:
                             if self.gpio_line.get_value(PIN_BUTTON) == Value.ACTIVE:  # Released
                                 break
-                            time.sleep(0.01)
+                            
+                            # Check how long button has been held
+                            hold_time = time.time() - press_start
+                            
+                            # Shutdown if held for 15+ seconds
+                            if hold_time >= 15.0:
+                                self.debug_log("Button: 15+ second hold detected - initiating shutdown")
+                                print("SHUTDOWN: Button held for 15+ seconds")
+                                sys.stdout.flush()
+                                # Display shutdown message
+                                with canvas(self.device) as draw:
+                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                    draw.text((10, 20), "SHUTDOWN", fill="white", font=self.font_large)
+                                    draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
+                                time.sleep(2)
+                                os.system('hassio host shutdown')
+                                sys.exit(0)
+                            
+                            # Reboot if held for 10+ seconds
+                            elif hold_time >= 10.0:
+                                self.debug_log("Button: 10+ second hold detected - initiating reboot")
+                                print("REBOOT: Button held for 10+ seconds")
+                                sys.stdout.flush()
+                                # Display reboot message
+                                with canvas(self.device) as draw:
+                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                    draw.text((15, 20), "REBOOTING", fill="white", font=self.font_large)
+                                    draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
+                                time.sleep(2)
+                                os.system('hassio host reboot')
+                                sys.exit(0)
+                            
+                            time.sleep(0.1)
                         
                         press_end = time.time()
                         pulsetime = int((press_end - press_start) * 10)

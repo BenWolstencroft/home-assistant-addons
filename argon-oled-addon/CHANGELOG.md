@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2025-11-20
+
+### Added
+- Power management via button holds:
+  - Hold button for 10+ seconds: System reboot
+  - Hold button for 15+ seconds: System shutdown
+- Visual feedback on OLED display when reboot/shutdown is triggered
+- Continuous monitoring of button hold duration to trigger power actions
+
+### Changed
+- Button monitor now checks hold duration every 100ms during press
+- Power actions (reboot/shutdown) execute immediately when threshold is reached
+- OLED displays status message before executing power command
+
 ## [1.8.0] - 2025-11-20
 
 ### Fixed
