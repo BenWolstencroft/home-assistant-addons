@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.3] - 2025-11-20
+
+### Fixed
+- Docker build issue: added musl upgrade step before installing build dependencies to resolve version conflicts
+
 ## [1.6.2] - 2025-11-20
 
 ### Fixed

@@ -12,8 +12,9 @@ RUN apk add --no-cache \
     bash \
     py3-pillow
 
-# Install build dependencies and Python packages that need compilation
-RUN apk add --no-cache --virtual .build-deps \
+# Upgrade musl to fix version conflict, then install build dependencies
+RUN apk upgrade --no-cache musl \
+ && apk add --no-cache --virtual .build-deps \
     python3-dev \
     gcc \
     musl-dev \
