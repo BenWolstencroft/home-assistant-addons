@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.1] - 2025-11-20
+
+### Changed
+- Improved clock digit spacing to ensure at least 1 pixel between each number
+- Enhanced colon dots between time segments (HH:MM:SS) for better visibility
+
 ## [1.12.0] - 2025-11-20
 
 ### Changed

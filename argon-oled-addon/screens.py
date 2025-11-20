@@ -121,33 +121,36 @@ class ScreenRenderer:
         # Draw HH:MM:SS in segmented style with slightly smaller digits to fit all 6
         x_offset = 2
         digit_width = 14
-        digit_spacing = 2
-        colon_spacing = 4
+        digit_spacing = 3  # At least 1 pixel between digits
+        colon_spacing = 5  # Space for colon dots
         scale = 1.75
         
         # Draw HH
         self._draw_segment_digit(draw, x_offset, 22, int(hour[0]), scale)
-        self._draw_segment_digit(draw, x_offset + digit_width + digit_spacing, 22, int(hour[1]), scale)
+        x_offset += digit_width + digit_spacing
+        self._draw_segment_digit(draw, x_offset, 22, int(hour[1]), scale)
+        x_offset += digit_width + digit_spacing
         
-        # Draw first colon
-        x_colon1 = x_offset + 2 * (digit_width + digit_spacing) + 2
-        draw.rectangle((x_colon1, 30, x_colon1 + 2, 32), fill=255)
-        draw.rectangle((x_colon1, 40, x_colon1 + 2, 42), fill=255)
+        # Draw first colon (two dots)
+        draw.rectangle((x_offset + 1, 30, x_offset + 3, 32), fill=255)
+        draw.rectangle((x_offset + 1, 40, x_offset + 3, 42), fill=255)
+        x_offset += colon_spacing
         
         # Draw MM
-        x_offset += 2 * (digit_width + digit_spacing) + colon_spacing + 2
         self._draw_segment_digit(draw, x_offset, 22, int(minute[0]), scale)
-        self._draw_segment_digit(draw, x_offset + digit_width + digit_spacing, 22, int(minute[1]), scale)
+        x_offset += digit_width + digit_spacing
+        self._draw_segment_digit(draw, x_offset, 22, int(minute[1]), scale)
+        x_offset += digit_width + digit_spacing
         
-        # Draw second colon
-        x_colon2 = x_offset + 2 * (digit_width + digit_spacing) + 2
-        draw.rectangle((x_colon2, 30, x_colon2 + 2, 32), fill=255)
-        draw.rectangle((x_colon2, 40, x_colon2 + 2, 42), fill=255)
+        # Draw second colon (two dots)
+        draw.rectangle((x_offset + 1, 30, x_offset + 3, 32), fill=255)
+        draw.rectangle((x_offset + 1, 40, x_offset + 3, 42), fill=255)
+        x_offset += colon_spacing
         
         # Draw SS
-        x_offset += 2 * (digit_width + digit_spacing) + colon_spacing + 2
         self._draw_segment_digit(draw, x_offset, 22, int(second[0]), scale)
-        self._draw_segment_digit(draw, x_offset + digit_width + digit_spacing, 22, int(second[1]), scale)
+        x_offset += digit_width + digit_spacing
+        self._draw_segment_digit(draw, x_offset, 22, int(second[1]), scale)
     
     def draw_cpu(self, draw, cpu_usage, cpu_temp):
         """Draw CPU information"""
