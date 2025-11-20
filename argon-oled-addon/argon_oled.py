@@ -83,16 +83,10 @@ class ArgonOLED:
                     self.gpio_chip = None
                     self.gpio_line = None
                     if 'gpiochip1' in chip_name:  # Last attempt
-                        self.debug_log(f"Failed to initialize GPIO: {e}")
-                        self.debug_log("Button functionality will be disabled")
-    
-    def debug_log(self, message):
-        """Print debug message if debug logging is enabled"""
-        if self.debug_logging:
-            print(message)
-            sys.stdout.flush()
+                        print(f"Failed to initialize GPIO: {e}")
+                        print("Button functionality will be disabled")
         
-        # Try to load fonts
+        # Load fonts
         try:
             self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
             self.font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
@@ -102,7 +96,7 @@ class ArgonOLED:
             self.font_medium = ImageFont.load_default()
             self.font_large = ImageFont.load_default()
         
-        # Try to load logo image
+        # Load logo image
         self.logo_image = None
         logo_paths = [
             '/data/logo.png',
@@ -130,6 +124,12 @@ class ArgonOLED:
         if not self.logo_image:
             self.debug_log("No logo image could be loaded")
             self.debug_log("Tip: Place logo.png in /data/ or /config/ directory")
+    
+    def debug_log(self, message):
+        """Print debug message if debug logging is enabled"""
+        if self.debug_logging:
+            print(message)
+            sys.stdout.flush()
     
     def get_cpu_temp(self):
         """Get CPU temperature"""

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.8] - 2025-11-20
+
+### Fixed
+- Critical bug: font and logo loading code was mistakenly inside debug_log() method
+- This caused logo to reload on every debug message, creating infinite loop spam
+- Moved font and logo loading back to __init__() where it belongs
+
 ## [1.6.7] - 2025-11-20
 
 ### Fixed
