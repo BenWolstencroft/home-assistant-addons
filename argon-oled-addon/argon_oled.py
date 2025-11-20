@@ -65,6 +65,7 @@ class ArgonOLED:
         self.last_switch = time.time()
         self.button_action = None  # For button press communication
         self.power_management_enabled = False  # Will be set after permission check
+        self.button_in_power_hold = False  # Track when button is held for reboot/shutdown
         
         # Check if we have permissions for host power management
         self.check_power_permissions()
@@ -755,6 +756,7 @@ class ArgonOLED:
                             # Display reboot message if held for 10+ seconds (but less than 15)
                             elif hold_time >= 10.0 and not reboot_displayed and not shutdown_displayed:
                                 self.debug_log("Button: 10 seconds - will reboot on release")
+                                self.button_in_power_hold = True
                                 with canvas(self.device) as draw:
                                     draw.rectangle(self.device.bounding_box, outline="white", fill="black")
                                     draw.text((15, 15), "REBOOTING", fill="white", font=self.font_large)
@@ -767,46 +769,86 @@ class ArgonOLED:
                         total_hold = press_end - press_start
                         pulsetime = int(total_hold * 10)
                         
+                        # Clear power hold flag now that button is released
+                        self.button_in_power_hold = False
+                        
                         # Execute action based on total hold time (only if power management is enabled)
                         if total_hold >= 15.0 and self.power_management_enabled:
-                            self.debug_log("Button released after 15+ seconds - executing shutdown")
-                            self.debug_log("SHUTDOWN: Button held for 15+ seconds")
-                            # Display executing message
-                            with canvas(self.device) as draw:
-                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
-                                draw.text((10, 20), "SHUTDOWN", fill="white", font=self.font_large)
-                                draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
-                            time.sleep(1)
-                            # Use Supervisor API to shutdown
-                            try:
-                                supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
-                                self.debug_log(f"Supervisor token present: {bool(supervisor_token)}")
-                                self.debug_log("Sending shutdown request to supervisor...")
-                                
-                                response = requests.post(
-                                    'http://supervisor/host/shutdown',
-                                    headers={
-                                        'Authorization': f'Bearer {supervisor_token}',
-                                        'Content-Type': 'application/json'
-                                    },
-                                    timeout=10
-                                )
-                                self.debug_log(f"Shutdown response status: {response.status_code}")
-                                self.debug_log(f"Shutdown response body: {response.text}")
-                                
-                                if response.status_code not in [200, 202]:
-                                    self.debug_log(f"WARNING: Unexpected status code: {response.status_code}")
-                                    
-                            except requests.exceptions.Timeout:
-                                self.debug_log("Shutdown request timed out (may still execute)")
-                            except Exception as e:
-                                self.debug_log(f"Shutdown error: {type(e).__name__}: {e}")
-                                if self.debug_logging:
-                                    import traceback
-                                    traceback.print_exc()
+                            self.debug_log("Button released after 15+ seconds - shutdown selected")
                             
-                            time.sleep(5)  # Wait a bit to see logs before exit
-                            sys.exit(0)
+                            # Confirmation countdown with cancel option
+                            cancelled = False
+                            for countdown in range(5, 0, -1):
+                                # Draw countdown with progress bar
+                                with canvas(self.device) as draw:
+                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                    draw.text((10, 10), "SHUTDOWN?", fill="white", font=self.font_large)
+                                    draw.text((5, 35), f"Confirm in {countdown}s", fill="white", font=self.font_small)
+                                    draw.text((5, 48), "Press to cancel", fill="white", font=self.font_small)
+                                    
+                                    # Progress bar
+                                    bar_width = int((countdown / 5.0) * 118)
+                                    draw.rectangle((5, 57, 122, 62), outline=255)
+                                    draw.rectangle((5, 57, 5 + bar_width, 62), fill=255)
+                                
+                                # Check for button press to cancel
+                                for _ in range(10):  # Check 10 times per second
+                                    try:
+                                        if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 0:
+                                            self.debug_log("Shutdown cancelled by button press")
+                                            cancelled = True
+                                            with canvas(self.device) as draw:
+                                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                                draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
+                                            time.sleep(2)
+                                            break
+                                    except:
+                                        pass
+                                    time.sleep(0.1)
+                                
+                                if cancelled:
+                                    break
+                            
+                            if not cancelled:
+                                self.debug_log("SHUTDOWN: Executing shutdown command")
+                                # Display executing message
+                                with canvas(self.device) as draw:
+                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                    draw.text((10, 20), "SHUTDOWN", fill="white", font=self.font_large)
+                                    draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
+                                time.sleep(1)
+                                # Use Supervisor API to shutdown
+                                try:
+                                    supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
+                                    self.debug_log(f"Supervisor token present: {bool(supervisor_token)}")
+                                    self.debug_log("Sending shutdown request to supervisor...")
+                                    
+                                    response = requests.post(
+                                        'http://supervisor/host/shutdown',
+                                        headers={
+                                            'Authorization': f'Bearer {supervisor_token}',
+                                            'Content-Type': 'application/json'
+                                        },
+                                        timeout=10
+                                    )
+                                    self.debug_log(f"Shutdown response status: {response.status_code}")
+                                    self.debug_log(f"Shutdown response body: {response.text}")
+                                    
+                                    if response.status_code not in [200, 202]:
+                                        self.debug_log(f"WARNING: Unexpected status code: {response.status_code}")
+                                        
+                                except requests.exceptions.Timeout:
+                                    self.debug_log("Shutdown request timed out (may still execute)")
+                                except Exception as e:
+                                    self.debug_log(f"Shutdown error: {type(e).__name__}: {e}")
+                                    if self.debug_logging:
+                                        import traceback
+                                        traceback.print_exc()
+                                
+                                # Clear screen immediately after command
+                                self.device.clear()
+                                time.sleep(2)
+                                sys.exit(0)
                         
                         elif total_hold >= 15.0 and not self.power_management_enabled:
                             # User tried to shutdown but we don't have permissions
@@ -818,44 +860,81 @@ class ArgonOLED:
                             time.sleep(3)
                         
                         elif total_hold >= 10.0 and self.power_management_enabled:
-                            self.debug_log("Button released after 10+ seconds - executing reboot")
-                            self.debug_log("REBOOT: Button held for 10+ seconds")
-                            # Display executing message
-                            with canvas(self.device) as draw:
-                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
-                                draw.text((15, 20), "REBOOTING", fill="white", font=self.font_large)
-                                draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
-                            time.sleep(1)
-                            # Use Supervisor API to reboot
-                            try:
-                                supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
-                                self.debug_log(f"Supervisor token present: {bool(supervisor_token)}")
-                                self.debug_log("Sending reboot request to supervisor...")
-                                
-                                response = requests.post(
-                                    'http://supervisor/host/reboot',
-                                    headers={
-                                        'Authorization': f'Bearer {supervisor_token}',
-                                        'Content-Type': 'application/json'
-                                    },
-                                    timeout=10
-                                )
-                                self.debug_log(f"Reboot response status: {response.status_code}")
-                                self.debug_log(f"Reboot response body: {response.text}")
-                                
-                                if response.status_code not in [200, 202]:
-                                    self.debug_log(f"WARNING: Unexpected status code: {response.status_code}")
-                                    
-                            except requests.exceptions.Timeout:
-                                self.debug_log("Reboot request timed out (may still execute)")
-                            except Exception as e:
-                                self.debug_log(f"Reboot error: {type(e).__name__}: {e}")
-                                if self.debug_logging:
-                                    import traceback
-                                    traceback.print_exc()
+                            self.debug_log("Button released after 10+ seconds - reboot selected")
                             
-                            time.sleep(5)  # Wait a bit to see logs before exit
-                            sys.exit(0)
+                            # Confirmation countdown with cancel option
+                            cancelled = False
+                            for countdown in range(5, 0, -1):
+                                # Draw countdown with progress bar
+                                with canvas(self.device) as draw:
+                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                    draw.text((15, 10), "REBOOT?", fill="white", font=self.font_large)
+                                    draw.text((5, 35), f"Confirm in {countdown}s", fill="white", font=self.font_small)
+                                    draw.text((5, 48), "Press to cancel", fill="white", font=self.font_small)
+                                    
+                                    # Progress bar
+                                    bar_width = int((countdown / 5.0) * 118)
+                                    draw.rectangle((5, 57, 122, 62), outline=255)
+                                    draw.rectangle((5, 57, 5 + bar_width, 62), fill=255)
+                                
+                                # Check for button press to cancel
+                                for _ in range(10):  # Check 10 times per second
+                                    try:
+                                        if self.gpio_line and self.gpio_line.get_value(PIN_BUTTON) == 0:
+                                            self.debug_log("Reboot cancelled by button press")
+                                            cancelled = True
+                                            with canvas(self.device) as draw:
+                                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                                draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
+                                            time.sleep(2)
+                                            break
+                                    except:
+                                        pass
+                                    time.sleep(0.1)
+                                
+                                if cancelled:
+                                    break
+                            
+                            if not cancelled:
+                                self.debug_log("REBOOT: Executing reboot command")
+                                # Display executing message
+                                with canvas(self.device) as draw:
+                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                    draw.text((15, 20), "REBOOTING", fill="white", font=self.font_large)
+                                    draw.text((20, 45), "Please wait...", fill="white", font=self.font_small)
+                                time.sleep(1)
+                                # Use Supervisor API to reboot
+                                try:
+                                    supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
+                                    self.debug_log(f"Supervisor token present: {bool(supervisor_token)}")
+                                    self.debug_log("Sending reboot request to supervisor...")
+                                    
+                                    response = requests.post(
+                                        'http://supervisor/host/reboot',
+                                        headers={
+                                            'Authorization': f'Bearer {supervisor_token}',
+                                            'Content-Type': 'application/json'
+                                        },
+                                        timeout=10
+                                    )
+                                    self.debug_log(f"Reboot response status: {response.status_code}")
+                                    self.debug_log(f"Reboot response body: {response.text}")
+                                    
+                                    if response.status_code not in [200, 202]:
+                                        self.debug_log(f"WARNING: Unexpected status code: {response.status_code}")
+                                        
+                                except requests.exceptions.Timeout:
+                                    self.debug_log("Reboot request timed out (may still execute)")
+                                except Exception as e:
+                                    self.debug_log(f"Reboot error: {type(e).__name__}: {e}")
+                                    if self.debug_logging:
+                                        import traceback
+                                        traceback.print_exc()
+                                
+                                # Clear screen immediately after command
+                                self.device.clear()
+                                time.sleep(2)
+                                sys.exit(0)
                         
                         elif total_hold >= 10.0 and not self.power_management_enabled:
                             # User tried to reboot but we don't have permissions
@@ -905,6 +984,14 @@ class ArgonOLED:
         except Exception as e:
             self.debug_log(f"Button monitor error: {e}")
     
+    def cleanup(self):
+        """Clean up and clear display"""
+        try:
+            self.device.clear()
+            self.device.cleanup()
+        except:
+            pass
+    
     def run(self):
         """Main loop"""
         self.debug_log(f"Starting Argon OLED Display")
@@ -939,14 +1026,15 @@ class ArgonOLED:
                     self.button_action = None
                     self.last_switch = current_time
                 
-                # Switch screen if needed (auto-rotation)
-                elif current_time - self.last_switch >= self.switch_duration:
+                # Switch screen if needed (auto-rotation) - but not during power hold
+                elif current_time - self.last_switch >= self.switch_duration and not self.button_in_power_hold:
                     self.current_screen = (self.current_screen + 1) % len(self.screen_list)
                     self.last_switch = current_time
                 
-                # Display current screen
-                screen_name = self.screen_list[self.current_screen]
-                self.display_screen(screen_name)
+                # Display current screen - but not during power hold
+                if not self.button_in_power_hold:
+                    screen_name = self.screen_list[self.current_screen]
+                    self.display_screen(screen_name)
                 
                 time.sleep(1)
         
@@ -955,8 +1043,7 @@ class ArgonOLED:
         except Exception as e:
             print(f"Error in main loop: {e}")
         finally:
-            self.device.clear()
-            self.device.cleanup()
+            self.cleanup()
 
 
 def main():

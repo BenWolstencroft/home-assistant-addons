@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2025-11-20
+
+### Added
+- Confirmation screen with 5-second countdown after reboot/shutdown is selected
+- Visual progress bar showing time remaining during confirmation
+- Ability to cancel reboot/shutdown by pressing button during countdown
+- "Press to cancel" instruction displayed during confirmation
+
+### Changed
+- Reboot/shutdown now requires explicit confirmation instead of executing immediately
+- Improved user safety by preventing accidental system restarts
+
+## [1.9.8] - 2025-11-20
+
+### Changed
+- Screen rotation and refresh now pause when button is held after reboot threshold (10+ seconds)
+- Prevents screen from switching away while user is holding button to confirm reboot/shutdown
+
+### Added
+- New `button_in_power_hold` flag to track power command state
+
+## [1.9.7] - 2025-11-20
+
+### Fixed
+- OLED screen now clears immediately after issuing reboot/shutdown commands
+- Screen clears on addon shutdown for any reason (clean exit)
+
+### Added
+- New cleanup() method to ensure screen is always cleared on exit
+- Reduced wait time after power commands from 5s to 2s before exit
+
+### Changed
+- Better cleanup handling in finally block using dedicated cleanup method
+
 ## [1.9.6] - 2025-11-20
 
 ### Added
