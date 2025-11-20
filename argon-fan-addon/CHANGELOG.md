@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2025-11-20
+
+### Fixed
+- Improved I2C device detection using i2cdetect command line tool first
+- Changed from read operations to write operations for device detection (more reliable)
+- Added detailed debug logging for each bus attempt
+- Better error messages with troubleshooting steps
+
+### Changed
+- Now uses i2cdetect to scan buses before attempting communication
+- Tests device communication with a safe write (fan off) instead of read
+- More verbose debug output to help diagnose connection issues
+
 ## [1.0.3] - 2025-11-20
 
 ### Fixed

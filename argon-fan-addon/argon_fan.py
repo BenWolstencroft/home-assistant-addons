@@ -87,22 +87,62 @@ class ArgonFanController:
     
     def init_i2c(self):
         """Initialize I2C bus communication"""
-        # Try to find the correct I2C bus
+        import os
+        import subprocess
+        
+        # First, try using i2cdetect to find the device
+        logger.info("Scanning I2C buses for Argon ONE device...")
+        detected_bus = None
+        
         for bus_num in [1, 0, 13, 14, 3, 10, 11, 22]:
+            if not os.path.exists(f'/dev/i2c-{bus_num}'):
+                continue
+                
             try:
+                # Use i2cdetect to check if device is present
+                result = subprocess.run(
+                    ['i2cdetect', '-y', str(bus_num)],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and ' 1a ' in result.stdout:
+                    logger.info(f"Found Argon ONE device on bus {bus_num} via i2cdetect")
+                    detected_bus = bus_num
+                    break
+            except Exception as e:
+                logger.debug(f"i2cdetect failed for bus {bus_num}: {e}")
+        
+        # Try to initialize the detected bus (or try all buses if detection failed)
+        buses_to_try = [detected_bus] if detected_bus is not None else [1, 0, 13, 14, 3, 10, 11, 22]
+        
+        for bus_num in buses_to_try:
+            if not os.path.exists(f'/dev/i2c-{bus_num}'):
+                continue
+                
+            try:
+                logger.debug(f"Attempting to open I2C bus {bus_num}...")
                 test_bus = smbus.SMBus(bus_num)
-                # Try to read from the Argon device
+                
+                # Try a safe write operation (fan off) instead of read
                 try:
-                    test_bus.read_byte(ADDR_FAN)
+                    logger.debug(f"Testing communication with device at 0x{ADDR_FAN:02x} on bus {bus_num}...")
+                    test_bus.write_byte(ADDR_FAN, 0x00)  # Turn fan off
+                    time.sleep(0.1)
+                    
+                    # If we got here, it worked!
                     self.bus = test_bus
-                    logger.info(f"I2C bus {bus_num} initialized successfully")
-                    logger.info(f"Argon ONE device detected at address 0x{ADDR_FAN:02x}")
+                    logger.info(f"✓ I2C bus {bus_num} initialized successfully")
+                    logger.info(f"✓ Argon ONE device responding at address 0x{ADDR_FAN:02x}")
                     return
-                except IOError:
-                    # Device not on this bus, continue searching
+                    
+                except IOError as e:
+                    logger.debug(f"Device not responding on bus {bus_num}: {e}")
                     test_bus.close()
                     continue
-            except Exception:
+                    
+            except Exception as e:
+                logger.debug(f"Failed to open bus {bus_num}: {e}")
                 continue
         
         # If we get here, no working bus was found
@@ -111,11 +151,15 @@ class ArgonFanController:
         logger.error("  1. I2C is not enabled on your Raspberry Pi")
         logger.error("  2. Argon ONE case is not properly connected")
         logger.error("  3. I2C device permissions issue")
+        logger.error("  4. Wrong I2C address (expected 0x1a)")
+        logger.error("")
         logger.error("Available I2C devices:")
-        import os
-        i2c_devs = [d for d in os.listdir('/dev') if d.startswith('i2c-')]
+        i2c_devs = sorted([d for d in os.listdir('/dev') if d.startswith('i2c-')])
         for dev in i2c_devs:
             logger.error(f"  /dev/{dev}")
+        
+        logger.error("")
+        logger.error("Please try running 'i2cdetect -y 1' on your host to verify the device.")
         sys.exit(1)
     
     def get_cpu_temp(self):
