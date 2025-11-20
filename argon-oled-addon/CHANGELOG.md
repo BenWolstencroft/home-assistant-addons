@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.1] - 2025-11-20
+
+### Fixed
+- Fixed ScreenRenderer method signatures to properly create canvas contexts internally
+- All draw methods now handle their own rendering lifecycle without requiring draw parameter
+- Resolved runtime error where draw_logo() was missing required positional argument
+
 ## [1.13.0] - 2025-11-20
 
 ### Changed
