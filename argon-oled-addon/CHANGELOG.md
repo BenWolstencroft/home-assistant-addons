@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.3] - 2025-11-20
+
+### Added
+- Support links to GitHub repository and Home Assistant Community forum
+
+### Changed
+- Updated README to reference I2C Configurator community add-on for easier setup
+- Removed "Supported Screens" section from README (consolidated into Configuration)
+- Cleaned up screen name references (removed `logo1v5` and `status` aliases)
+
 ## [1.5.2] - 2025-11-20
 
 ### Added

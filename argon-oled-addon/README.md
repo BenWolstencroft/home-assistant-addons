@@ -15,20 +15,6 @@ This add-on brings the functionality of the Argon ONE OLED display to Home Assis
 - 🏠 Home Assistant system status monitoring (updates, backups)
 - 🔘 Physical button support (GPIO 4) to manually cycle through screens
 
-## Supported Screens
-
-The add-on can display the following screens:
-
-- **logo** - Argon ONE logo screen (custom image support)
-- **clock** - Current date and time
-- **cpu** - CPU usage percentage and temperature
-- **ram** - Memory usage and total memory
-- **storage** - Disk usage and total storage
-- **temp** - CPU temperature (large display)
-- **ip** - Network IP address (host IP, not container IP)
-- **qr** - QR code for Home Assistant URL (scan to open HA on your phone)
-- **hastatus** / **status** - Home Assistant system status (updates, backups)
-
 ## Installation
 
 1. Add this repository to your Home Assistant Add-on Store
@@ -39,23 +25,16 @@ The add-on can display the following screens:
 
 ## Enabling I2C on Raspberry Pi
 
-Before using this add-on, you need to enable I2C on your Raspberry Pi:
+Before using this add-on, you need to enable I2C on your Raspberry Pi.
 
-### For Home Assistant OS:
+The easiest way to enable I2C on Home Assistant OS is to install the **[I2C Configurator](https://github.com/adamoutler/HassOSConfigurator)** community add-on:
 
-The I2C interface should be enabled by default. If you experience issues, you can enable it by:
+1. Add the repository: `https://github.com/adamoutler/HassOSConfigurator`
+2. Install the "I2C Configurator" add-on
+3. Start the add-on to enable I2C
+4. Restart your system
 
-1. SSH into your Home Assistant instance
-2. Access the host: `login`
-3. Run: `ha os config i2c true`
-4. Reboot your system
-
-### For manual installations:
-
-1. SSH into your Raspberry Pi
-2. Run: `sudo raspi-config`
-3. Navigate to: Interface Options → I2C → Enable
-4. Reboot your system
+The I2C interface should then be available for this add-on to use.
 
 ## Configuration
 
@@ -89,7 +68,7 @@ Default: `30`
 Space-separated list of screens to display in rotation.
 
 Available screens:
-- `logo` or `logo1v5` - Argon ONE logo (supports custom images)
+- `logo` - Argon ONE logo (supports custom images)
 - `clock` - Date and time
 - `cpu` - CPU information
 - `ram` - Memory information
@@ -97,7 +76,7 @@ Available screens:
 - `temp` - Temperature display
 - `ip` - IP address (host IP)
 - `qr` - QR code for Home Assistant URL
-- `hastatus` or `status` - Home Assistant system status
+- `hastatus` - Home Assistant system status
 
 Example: `"logo clock cpu ram qr hastatus"`
 
@@ -144,8 +123,8 @@ Default: `"logo clock cpu storage ram temp ip qr hastatus"`
 ## Support
 
 For issues, questions, or contributions:
-- GitHub Issues: [Your Repository URL]
-- Home Assistant Community: [Forum Thread URL]
+- GitHub Issues: [https://github.com/BenWolstencroft/home-assistant-addons](https://github.com/BenWolstencroft/home-assistant-addons)
+- Home Assistant Community: [https://community.home-assistant.io/t/argon-indistria-oled-module-one-v5-addon/952927](https://community.home-assistant.io/t/argon-indistria-oled-module-one-v5-addon/952927)
 
 ## Credits
 
