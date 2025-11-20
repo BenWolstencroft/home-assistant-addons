@@ -69,24 +69,33 @@ class ArgonOLED:
             # First, list available GPIO chips
             print("Checking for available GPIO chips...")
             import glob
-            gpio_chips = glob.glob('/dev/gpiochip*')
+            gpio_chips = sorted(glob.glob('/dev/gpiochip*'))
             if gpio_chips:
                 print(f"Found GPIO chips: {', '.join(gpio_chips)}")
             else:
                 print("No /dev/gpiochip* devices found")
             
-            # Try different gpiochip devices
-            for chip_name in ['gpiochip0', 'gpiochip4', 'gpiochip1', 'gpiochip2', 'gpiochip3']:
+            # Try each available GPIO chip
+            for chip_path in gpio_chips:
                 try:
-                    print(f"Trying to open {chip_name}...")
-                    self.gpio_chip = gpiod.Chip(chip_name)
-                    print(f"Successfully opened {chip_name}")
-                    self.gpio_line = self.gpio_chip.get_line(PIN_BUTTON)
-                    self.gpio_line.request(consumer="argon_oled", type=gpiod.LINE_REQ_EV_RISING_EDGE)
-                    print(f"GPIO initialized successfully on {chip_name} pin {PIN_BUTTON}")
-                    break
+                    print(f"Trying to open {chip_path}...")
+                    self.gpio_chip = gpiod.Chip(chip_path)
+                    print(f"Successfully opened {chip_path}")
+                    
+                    # Try to get the button line
+                    try:
+                        self.gpio_line = self.gpio_chip.get_line(PIN_BUTTON)
+                        self.gpio_line.request(consumer="argon_oled", type=gpiod.LINE_REQ_EV_RISING_EDGE)
+                        print(f"GPIO initialized successfully on {chip_path} pin {PIN_BUTTON}")
+                        break
+                    except Exception as line_error:
+                        print(f"Pin {PIN_BUTTON} not available on {chip_path}: {line_error}")
+                        self.gpio_chip.close()
+                        self.gpio_chip = None
+                        self.gpio_line = None
+                        
                 except Exception as e:
-                    print(f"Failed to initialize {chip_name}: {e}")
+                    print(f"Failed to open {chip_path}: {e}")
                     if self.gpio_chip:
                         try:
                             self.gpio_chip.close()
@@ -96,7 +105,7 @@ class ArgonOLED:
                     self.gpio_line = None
             
             if not self.gpio_line:
-                print("Button functionality will be disabled - no GPIO access available")
+                print("Button functionality will be disabled - no compatible GPIO chip found")
         else:
             print("gpiod library not available - button functionality disabled")
         

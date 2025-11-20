@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.1] - 2025-11-20
+
+### Fixed
+- GPIO chip detection now uses full device paths (/dev/gpiochip0) instead of just chip names
+- Now iterates through all discovered GPIO chips instead of hardcoded list
+- Better error handling - tests each chip for pin availability before selecting
+
 ## [1.7.0] - 2025-11-20
 
 ### Changed
