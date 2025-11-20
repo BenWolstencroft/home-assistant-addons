@@ -1,5 +1,5 @@
 name: Argon ONE OLED Display
-version: 1.9.4
+version: 1.9.6
 slug: argon_one_oled_display
 description: Display system information on Argon ONE OLED screen
 url: https://github.com/yourusername/argon-oled-ha-addon
@@ -14,6 +14,7 @@ map:
   - config:rw
 homeassistant_api: false
 hassio_api: true
+hassio_role: manager
 gpio: true
 apparmor: false
 devices:

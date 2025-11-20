@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.6] - 2025-11-20
+
+### Added
+- Startup permission check for power management capabilities
+- Automatic detection of manager role permissions
+- User-friendly error message on OLED when trying to reboot/shutdown without permissions
+- Displays "NO PERMISSION - Need manager role" message for 3 seconds when attempting power actions without proper role
+
+### Changed
+- Power management features now gracefully disabled if addon lacks manager role
+- Clear startup logging indicating whether power management is enabled or disabled
+- Button long-press (10s/15s) now checks permissions before attempting power actions
+
+### Improved
+- Better user experience - addon works normally without manager role, just without power features
+- Clear feedback to user about permission requirements
+
+## [1.9.5] - 2025-11-20
+
+### Fixed
+- Added `hassio_role: manager` to config.yaml to grant permissions for host reboot/shutdown
+- Resolves 403 Forbidden error when attempting to reboot or shutdown via button
+
+### Security Note
+- Addon now requires "Manager" role to perform host power operations
+- This is necessary for the button-triggered reboot/shutdown functionality
+
 ## [1.9.4] - 2025-11-20
 
 ### Changed

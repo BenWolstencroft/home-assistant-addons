@@ -64,6 +64,10 @@ class ArgonOLED:
         self.current_screen = 0
         self.last_switch = time.time()
         self.button_action = None  # For button press communication
+        self.power_management_enabled = False  # Will be set after permission check
+        
+        # Check if we have permissions for host power management
+        self.check_power_permissions()
         
         # Initialize GPIO for button if available
         self.gpio_chip = None
@@ -154,6 +158,45 @@ class ArgonOLED:
         if self.debug_logging:
             print(message)
             sys.stdout.flush()
+    
+    def check_power_permissions(self):
+        """Check if we have permissions to reboot/shutdown the host"""
+        try:
+            supervisor_token = os.environ.get('SUPERVISOR_TOKEN', '')
+            if not supervisor_token:
+                print("WARNING: No supervisor token available - power management disabled")
+                self.power_management_enabled = False
+                return
+            
+            # Try to get supervisor info to check our permissions
+            headers = {
+                'Authorization': f'Bearer {supervisor_token}',
+                'Content-Type': 'application/json'
+            }
+            response = requests.get('http://supervisor/supervisor/info', headers=headers, timeout=5)
+            
+            if response.status_code == 200:
+                # We have at least some API access
+                # Now test if we can access host endpoints (requires manager role)
+                test_response = requests.get('http://supervisor/host/info', headers=headers, timeout=5)
+                
+                if test_response.status_code == 200:
+                    print("✓ Power management enabled - addon has host control permissions")
+                    self.power_management_enabled = True
+                elif test_response.status_code == 403:
+                    print("⚠ Power management disabled - addon lacks 'manager' role permissions")
+                    print("  To enable reboot/shutdown via button, set 'hassio_role: manager' in config.yaml")
+                    self.power_management_enabled = False
+                else:
+                    print(f"⚠ Power management disabled - unexpected response: {test_response.status_code}")
+                    self.power_management_enabled = False
+            else:
+                print(f"⚠ Power management disabled - cannot access supervisor API: {response.status_code}")
+                self.power_management_enabled = False
+                
+        except Exception as e:
+            print(f"⚠ Power management disabled - permission check failed: {e}")
+            self.power_management_enabled = False
     
     def get_cpu_temp(self):
         """Get CPU temperature"""
@@ -724,8 +767,8 @@ class ArgonOLED:
                         total_hold = press_end - press_start
                         pulsetime = int(total_hold * 10)
                         
-                        # Execute action based on total hold time
-                        if total_hold >= 15.0:
+                        # Execute action based on total hold time (only if power management is enabled)
+                        if total_hold >= 15.0 and self.power_management_enabled:
                             self.debug_log("Button released after 15+ seconds - executing shutdown")
                             self.debug_log("SHUTDOWN: Button held for 15+ seconds")
                             # Display executing message
@@ -765,7 +808,16 @@ class ArgonOLED:
                             time.sleep(5)  # Wait a bit to see logs before exit
                             sys.exit(0)
                         
-                        elif total_hold >= 10.0:
+                        elif total_hold >= 15.0 and not self.power_management_enabled:
+                            # User tried to shutdown but we don't have permissions
+                            self.debug_log("Button held for shutdown but power management is disabled")
+                            with canvas(self.device) as draw:
+                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                draw.text((15, 15), "NO PERMISSION", fill="white", font=self.font_medium)
+                                draw.text((5, 35), "Need manager role", fill="white", font=self.font_small)
+                            time.sleep(3)
+                        
+                        elif total_hold >= 10.0 and self.power_management_enabled:
                             self.debug_log("Button released after 10+ seconds - executing reboot")
                             self.debug_log("REBOOT: Button held for 10+ seconds")
                             # Display executing message
@@ -804,6 +856,15 @@ class ArgonOLED:
                             
                             time.sleep(5)  # Wait a bit to see logs before exit
                             sys.exit(0)
+                        
+                        elif total_hold >= 10.0 and not self.power_management_enabled:
+                            # User tried to reboot but we don't have permissions
+                            self.debug_log("Button held for reboot but power management is disabled")
+                            with canvas(self.device) as draw:
+                                draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                draw.text((15, 15), "NO PERMISSION", fill="white", font=self.font_medium)
+                                draw.text((5, 35), "Need manager role", fill="white", font=self.font_small)
+                            time.sleep(3)
                     else:
                         time.sleep(0.1)
                         continue
