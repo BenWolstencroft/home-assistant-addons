@@ -373,17 +373,104 @@ class ArgonOLED:
             draw.rectangle((x + width + 3, y, x + width + 6, y + height), fill=255)
     
     def draw_clock(self, draw):
-        """Draw clock screen"""
+        """Draw clock screen with digital segmented display"""
         now = datetime.now()
-        date_str = now.strftime("%Y-%m-%d")
-        time_str = now.strftime("%H:%M:%S")
+        date_str = now.strftime("%b %d, %Y")
         
-        # Draw decorative border
-        draw.rectangle((0, 0, 127, 63), outline=255)
-        draw.rectangle((2, 2, 125, 61), outline=255)
+        # Draw header with date
+        self.draw_header(draw, date_str, "🕐")
         
-        draw.text((10, 12), date_str, font=self.font_medium, fill=255)
-        draw.text((18, 40), time_str, font=self.font_large, fill=255)
+        # Get time components
+        hour = now.strftime("%H")
+        minute = now.strftime("%M")
+        second = now.strftime("%S")
+        
+        # Draw HH:MM:SS in segmented style with slightly smaller digits to fit all 6
+        x_offset = 2
+        digit_width = 14
+        digit_spacing = 2
+        colon_spacing = 4
+        scale = 1.75
+        
+        # Draw HH
+        self._draw_segment_digit(draw, x_offset, 22, int(hour[0]), scale)
+        self._draw_segment_digit(draw, x_offset + digit_width + digit_spacing, 22, int(hour[1]), scale)
+        
+        # Draw first colon
+        x_colon1 = x_offset + 2 * (digit_width + digit_spacing) + 2
+        draw.rectangle((x_colon1, 30, x_colon1 + 2, 32), fill=255)
+        draw.rectangle((x_colon1, 40, x_colon1 + 2, 42), fill=255)
+        
+        # Draw MM
+        x_offset += 2 * (digit_width + digit_spacing) + colon_spacing + 2
+        self._draw_segment_digit(draw, x_offset, 22, int(minute[0]), scale)
+        self._draw_segment_digit(draw, x_offset + digit_width + digit_spacing, 22, int(minute[1]), scale)
+        
+        # Draw second colon
+        x_colon2 = x_offset + 2 * (digit_width + digit_spacing) + 2
+        draw.rectangle((x_colon2, 30, x_colon2 + 2, 32), fill=255)
+        draw.rectangle((x_colon2, 40, x_colon2 + 2, 42), fill=255)
+        
+        # Draw SS
+        x_offset += 2 * (digit_width + digit_spacing) + colon_spacing + 2
+        self._draw_segment_digit(draw, x_offset, 22, int(second[0]), scale)
+        self._draw_segment_digit(draw, x_offset + digit_width + digit_spacing, 22, int(second[1]), scale)
+    
+    def _draw_segment_digit(self, draw, x, y, digit, scale=1.0):
+        """Draw a 7-segment style digit"""
+        # Base segment size
+        seg_w = int(8 * scale)  # Width of horizontal segment
+        seg_h = int(2 * scale)  # Thickness of segments
+        seg_v = int(10 * scale)  # Height of vertical segment
+        
+        # Segment positions relative to x, y
+        # Segments: a=top, b=top-right, c=bottom-right, d=bottom, e=bottom-left, f=top-left, g=middle
+        segments = {
+            0: [1, 1, 1, 1, 1, 1, 0],
+            1: [0, 1, 1, 0, 0, 0, 0],
+            2: [1, 1, 0, 1, 1, 0, 1],
+            3: [1, 1, 1, 1, 0, 0, 1],
+            4: [0, 1, 1, 0, 0, 1, 1],
+            5: [1, 0, 1, 1, 0, 1, 1],
+            6: [1, 0, 1, 1, 1, 1, 1],
+            7: [1, 1, 1, 0, 0, 0, 0],
+            8: [1, 1, 1, 1, 1, 1, 1],
+            9: [1, 1, 1, 1, 0, 1, 1],
+        }
+        
+        if digit not in segments:
+            return
+        
+        segs = segments[digit]
+        
+        # Draw each segment if active
+        # a - top
+        if segs[0]:
+            draw.rectangle((x + seg_h, y, x + seg_h + seg_w, y + seg_h), fill=255)
+        
+        # b - top right
+        if segs[1]:
+            draw.rectangle((x + seg_h + seg_w, y + seg_h, x + seg_h + seg_w + seg_h, y + seg_h + seg_v), fill=255)
+        
+        # c - bottom right
+        if segs[2]:
+            draw.rectangle((x + seg_h + seg_w, y + seg_h + seg_v + seg_h, x + seg_h + seg_w + seg_h, y + seg_h + seg_v + seg_h + seg_v), fill=255)
+        
+        # d - bottom
+        if segs[3]:
+            draw.rectangle((x + seg_h, y + seg_h + seg_v + seg_h + seg_v, x + seg_h + seg_w, y + seg_h + seg_v + seg_h + seg_v + seg_h), fill=255)
+        
+        # e - bottom left
+        if segs[4]:
+            draw.rectangle((x, y + seg_h + seg_v + seg_h, x + seg_h, y + seg_h + seg_v + seg_h + seg_v), fill=255)
+        
+        # f - top left
+        if segs[5]:
+            draw.rectangle((x, y + seg_h, x + seg_h, y + seg_h + seg_v), fill=255)
+        
+        # g - middle
+        if segs[6]:
+            draw.rectangle((x + seg_h, y + seg_h + seg_v, x + seg_h + seg_w, y + seg_h + seg_v + seg_h), fill=255)
     
     def draw_cpu(self, draw):
         """Draw CPU information"""

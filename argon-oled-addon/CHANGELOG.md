@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.1] - 2025-11-20
+
+### Changed
+- Clock now displays full HH:MM:SS in 7-segment style
+- All six digits shown in segmented format across the screen
+- Optimized digit sizing to fit all time components
+
+## [1.11.0] - 2025-11-20
+
+### Added
+- 7-segment digital clock display for improved readability
+- Date moved to header bar with clock icon
+- Seconds display at bottom in smaller font
+
+### Changed
+- Clock screen redesigned with proper segmented digits
+- Time now displays as HH:MM in large 7-segment style
+
 ## [1.10.5] - 2025-11-20
 
 ### Fixed
