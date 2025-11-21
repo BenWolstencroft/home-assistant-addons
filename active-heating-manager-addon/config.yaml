@@ -1,0 +1,29 @@
+name: Active Heating Manager
+version: 0.2.0
+slug: active_heating_manager
+description: Smart heating management for Home Assistant
+url: https://github.com/BenWolstencroft/home-assistant-addons
+arch:
+  - armhf
+  - armv7
+  - aarch64
+  - amd64
+  - i386
+init: false
+startup: application
+boot: auto
+map:
+  - config:rw
+homeassistant_api: true
+hassio_api: true
+gpio: false
+apparmor: false
+options:
+  debug_logging: false
+  trv_entities: []
+  polling_interval: 300
+schema:
+  debug_logging: bool
+  trv_entities:
+    - str
+  polling_interval: int(10,3600)

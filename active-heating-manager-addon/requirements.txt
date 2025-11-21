@@ -1,0 +1,2 @@
+# Python requirements for Active Heating Manager addon
+requests>=2.31.0

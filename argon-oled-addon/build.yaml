@@ -2,3 +2,8 @@ build_from:
   aarch64: ghcr.io/hassio-addons/base/aarch64:19.0.0
   armhf: ghcr.io/hassio-addons/base/armhf:19.0.0
   armv7: ghcr.io/hassio-addons/base/armv7:19.0.0
+labels:
+  org.opencontainers.image.title: "Argon ONE OLED Display"
+  org.opencontainers.image.description: "Argon ONE OLED Display management for Home Assistant"
+  org.opencontainers.image.source: "https://github.com/BenWolstencroft/home-assistant-addons"
+  org.opencontainers.image.licenses: "MIT"
