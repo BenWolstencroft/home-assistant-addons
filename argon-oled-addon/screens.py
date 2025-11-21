@@ -26,8 +26,8 @@ class ScreenRenderer:
         full_text = f"{icon} {text}" if icon else text
         draw.text((5, 2), full_text, font=self.font_medium, fill=0)
     
-    def draw_progress_bar(self, draw, x, y, width, height, percentage, style="solid"):
-        """Draw styled progress bar"""
+    def draw_progress_bar(self, draw, x, y, width, height, percentage, font=None, style="solid"):
+        """Draw styled progress bar with percentage text to the right"""
         # Draw outline
         draw.rectangle((x, y, x + width, y + height), outline=255, fill=0)
         
@@ -48,6 +48,11 @@ class ScreenRenderer:
         # Add warning indicator if > 80%
         if percentage > 80:
             draw.rectangle((x + width + 3, y, x + width + 6, y + height), fill=255)
+        
+        # Draw percentage text to the right of the bar
+        if font:
+            text_x = x + width + 8
+            draw.text((text_x, y), f"{percentage:.0f}%", font=font, fill=255)
     
     def _draw_segment_digit(self, draw, x, y, digit, scale=1.0):
         """Draw a 7-segment style digit"""
@@ -121,11 +126,11 @@ class ScreenRenderer:
             
             # Draw HH:MM:SS in segmented style with slightly smaller digits to fit all 6
             x_offset = 2
-            scale = 1.75
+            scale = 1.575  # Reduced by 10% from 1.75
             # Calculate actual digit width: seg_h + seg_w + seg_h = thickness + width + thickness
-            # seg_w = int(8 * 1.75) = 14, seg_h = int(2 * 1.75) = 3
-            # Total width = 3 + 14 + 3 = 20 pixels
-            digit_width = int(2 * scale) + int(8 * scale) + int(2 * scale)  # 20 pixels
+            # seg_w = int(8 * 1.575) = 12, seg_h = int(2 * 1.575) = 3
+            # Total width = 3 + 12 + 3 = 18 pixels
+            digit_width = int(2 * scale) + int(8 * scale) + int(2 * scale)  # 18 pixels
             digit_spacing = 2  # Gap between digits
             colon_spacing = 5  # Space for colon dots
             
@@ -166,8 +171,8 @@ class ScreenRenderer:
             self.draw_header(draw, "CPU")
             
             # CPU Usage
-            draw.text((5, 20), f"Usage: {cpu_usage:.1f}%", font=self.font_small, fill=255)
-            self.draw_progress_bar(draw, 5, 32, 117, 8, cpu_usage)
+            draw.text((5, 20), "Usage:", font=self.font_small, fill=255)
+            self.draw_progress_bar(draw, 5, 32, 90, 8, cpu_usage, font=self.font_small)
             
             # CPU Temperature
             temp_unit = "°F" if self.temp_unit == 'F' else "°C"
@@ -201,8 +206,7 @@ class ScreenRenderer:
             
             draw.text((5, 20), f"Used: {mem_used_mb:.0f} MB", font=self.font_small, fill=255)
             draw.text((5, 32), f"Total: {mem_total_mb:.0f} MB", font=self.font_small, fill=255)
-            self.draw_progress_bar(draw, 5, 45, 117, 8, mem_percent)
-            draw.text((5, 56), f"{mem_percent:.1f}%", font=self.font_small, fill=255)
+            self.draw_progress_bar(draw, 5, 45, 90, 8, mem_percent, font=self.font_small)
     
     def draw_storage(self, system_info):
         """Draw storage information"""
@@ -213,8 +217,7 @@ class ScreenRenderer:
             
             draw.text((5, 20), f"Used: {disk_used:.1f} GB", font=self.font_small, fill=255)
             draw.text((5, 32), f"Total: {disk_total:.1f} GB", font=self.font_small, fill=255)
-            self.draw_progress_bar(draw, 5, 45, 117, 8, disk_percent)
-            draw.text((5, 56), f"{disk_percent:.1f}%", font=self.font_small, fill=255)
+            self.draw_progress_bar(draw, 5, 45, 90, 8, disk_percent, font=self.font_small)
     
     def draw_temp(self, system_info):
         """Draw temperature screen with large display"""
@@ -334,9 +337,6 @@ class ScreenRenderer:
                 if hasattr(draw, '_image'):
                     draw._image.paste(qr_img, (x, y))
                 
-                # Add label
-                draw.text((10, 58), "Scan for HA", font=self.font_small, fill=255)
-                
             except Exception as e:
                 draw.text((10, 25), "QR Error", font=self.font_small, fill=255)
     
@@ -354,10 +354,10 @@ class ScreenRenderer:
             
             # Update indicator
             if status_info['updates'] > 0:
-                draw.rectangle((95, 20, 122, 28), outline=255, fill=255)
+                draw.rectangle((95, 20, 122, 31), outline=255, fill=255)
                 draw.text((100, 20), "!", font=self.font_small, fill=0)
             else:
-                draw.rectangle((95, 20, 122, 28), outline=255, fill=0)
+                draw.rectangle((95, 20, 122, 31), outline=255, fill=0)
                 draw.text((100, 20), "OK", font=self.font_small, fill=255)
             
             # Last backup
@@ -374,8 +374,8 @@ class ScreenRenderer:
             
             # Backup indicator
             if status_info['backup_state'] == 'OK':
-                draw.rectangle((95, 33, 122, 41), outline=255, fill=0)
+                draw.rectangle((95, 33, 122, 44), outline=255, fill=0)
                 draw.text((100, 33), "OK", font=self.font_small, fill=255)
             else:
-                draw.rectangle((95, 33, 122, 41), outline=255, fill=255)
+                draw.rectangle((95, 33, 122, 44), outline=255, fill=255)
                 draw.text((100, 33), "!", font=self.font_small, fill=0)

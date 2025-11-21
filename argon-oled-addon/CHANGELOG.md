@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.14.0] - 2025-11-21
+
+### Changed
+- Refactored progress bars to include percentage text internally
+- Progress bar percentage labels now drawn by `draw_progress_bar()` method
+- Reduced 7-segment clock digit size by 10% for better screen fit
+- Clock scale reduced from 1.75 to 1.575 for improved layout
+
+### Improved
+- Cleaner code organization with self-contained progress bar rendering
+- Eliminated duplicate `draw.text()` calls for progress bar percentages
+- Better visual balance on clock screen with smaller digits
+
+### UI Refinements
+- Removed "Scan for HA" label from QR code screen
+- Increased status box heights on HA Status screen for better text containment
+- Progress bar percentages repositioned to right side of bars
+- Progress bars reduced from 117px to 90px width for percentage placement
+
 ## [1.13.3] - 2025-11-21
 
 ### Fixed
