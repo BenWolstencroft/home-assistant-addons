@@ -26,8 +26,8 @@ class ScreenRenderer:
         full_text = f"{icon} {text}" if icon else text
         draw.text((5, 2), full_text, font=self.font_medium, fill=0)
     
-    def draw_progress_bar(self, draw, x, y, width, height, percentage, font=None, style="solid"):
-        """Draw styled progress bar with percentage text to the right"""
+    def draw_progress_bar(self, draw, x, y, width, height, percentage, font=None, unit="%", style="solid"):
+        """Draw styled progress bar with value text to the right"""
         # Draw outline
         draw.rectangle((x, y, x + width, y + height), outline=255, fill=0)
         
@@ -49,10 +49,10 @@ class ScreenRenderer:
         if percentage > 80:
             draw.rectangle((x + width + 3, y, x + width + 6, y + height), fill=255)
         
-        # Draw percentage text to the right of the bar
+        # Draw value text to the right of the bar
         if font:
             text_x = x + width + 8
-            draw.text((text_x, y), f"{percentage:.0f}%", font=font, fill=255)
+            draw.text((text_x, y), f"{percentage:.0f}{unit}", font=font, fill=255)
     
     def _draw_segment_digit(self, draw, x, y, digit, scale=1.0):
         """Draw a 7-segment style digit"""
@@ -126,10 +126,8 @@ class ScreenRenderer:
             
             # Draw HH:MM:SS in segmented style with slightly smaller digits to fit all 6
             x_offset = 2
-            scale = 1.575  # Reduced by 10% from 1.75
+            scale = 1.5
             # Calculate actual digit width: seg_h + seg_w + seg_h = thickness + width + thickness
-            # seg_w = int(8 * 1.575) = 12, seg_h = int(2 * 1.575) = 3
-            # Total width = 3 + 12 + 3 = 18 pixels
             digit_width = int(2 * scale) + int(8 * scale) + int(2 * scale)  # 18 pixels
             digit_spacing = 2  # Gap between digits
             colon_spacing = 5  # Space for colon dots
@@ -176,24 +174,13 @@ class ScreenRenderer:
             
             # CPU Temperature
             temp_unit = "°F" if self.temp_unit == 'F' else "°C"
-            draw.text((5, 45), f"Temp: {cpu_temp:.1f}{temp_unit}", font=self.font_small, fill=255)
+            draw.text((5, 45), "Temp:", font=self.font_small, fill=255)
             
-            # Draw thermometer icon
-            therm_x = 95
-            therm_y = 45
-            therm_height = 12
-            draw.rectangle((therm_x + 2, therm_y, therm_x + 6, therm_y + therm_height), outline=255, fill=0)
-            draw.ellipse((therm_x - 2, therm_y + therm_height - 2, therm_x + 10, therm_y + therm_height + 10), outline=255, fill=0)
-            
-            # Fill based on temperature (assume 20-80°C range)
+            # Temperature progress bar (assume 20-80°C range)
             max_temp = 80 if self.temp_unit == 'C' else 176
             min_temp = 20 if self.temp_unit == 'C' else 68
-            temp_ratio = max(0, min(1, (cpu_temp - min_temp) / (max_temp - min_temp)))
-            fill_height = int(therm_height * temp_ratio)
-            
-            if fill_height > 0:
-                draw.rectangle((therm_x + 3, therm_y + therm_height - fill_height, therm_x + 5, therm_y + therm_height), fill=255)
-            draw.ellipse((therm_x, therm_y + therm_height, therm_x + 8, therm_y + therm_height + 8), fill=255)
+            temp_percent = max(0, min(100, ((cpu_temp - min_temp) / (max_temp - min_temp)) * 100))
+            self.draw_progress_bar(draw, 5, 57, 90, 6, cpu_temp, font=self.font_small, unit=temp_unit)
     
     def draw_ram(self, system_info):
         """Draw RAM information"""
@@ -365,7 +352,7 @@ class ScreenRenderer:
                 try:
                     # Parse ISO format: 2025-11-19T10:30:00.000000+00:00
                     backup_dt = datetime.fromisoformat(status_info['last_backup'].replace('Z', '+00:00'))
-                    backup_str = backup_dt.strftime("%m/%d %H:%M")
+                    backup_str = backup_dt.strftime("%d/%m/%y")
                     draw.text((5, 33), f"Backup: {backup_str}", font=self.font_small, fill=255)
                 except Exception:
                     draw.text((5, 33), "Backup: Parse Err", font=self.font_small, fill=255)
