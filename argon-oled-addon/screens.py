@@ -327,6 +327,51 @@ class ScreenRenderer:
             except Exception as e:
                 draw.text((10, 25), "QR Error", font=self.font_small, fill=255)
     
+    def draw_credits(self, version="1.0.0"):
+        """Draw credits splash screen with GitHub QR code and version number"""
+        with canvas(self.device) as draw:
+            github_url = "https://github.com/BenWolstencroft/home-assistant-addons"
+            
+            try:
+                # Generate QR code for GitHub repo
+                qr = qrcode.QRCode(
+                    version=1,
+                    error_correction=qrcode.constants.ERROR_CORRECT_L,
+                    box_size=1,
+                    border=1,
+                )
+                qr.add_data(github_url)
+                qr.make(fit=True)
+                
+                # Create QR code image
+                qr_img = qr.make_image(fill_color="white", back_color="black")
+                
+                # Resize to fit on right side (about 50x50)
+                qr_size = 50
+                qr_img = qr_img.resize((qr_size, qr_size))
+                
+                # Position QR code on right side
+                qr_x = 128 - qr_size - 5
+                qr_y = (64 - qr_size) // 2
+                
+                # Paste QR code onto display
+                if hasattr(draw, '_image'):
+                    draw._image.paste(qr_img, (qr_x, qr_y))
+                
+                # Draw text on left side
+                draw.text((5, 5), "Argon OLED", font=self.font_medium, fill=255)
+                draw.text((5, 20), "by Ben", font=self.font_small, fill=255)
+                draw.text((5, 32), "Wolstencroft", font=self.font_small, fill=255)
+                
+                # Version at bottom left
+                draw.text((5, 54), f"v{version}", font=self.font_small, fill=255)
+                
+            except Exception as e:
+                # Fallback if QR generation fails
+                draw.text((5, 10), "Argon OLED", font=self.font_medium, fill=255)
+                draw.text((5, 25), "by Ben Wolstencroft", font=self.font_small, fill=255)
+                draw.text((5, 40), f"v{version}", font=self.font_small, fill=255)
+    
     def draw_ha_status(self, supervisor_api):
         """Draw Home Assistant system status"""
         with canvas(self.device) as draw:

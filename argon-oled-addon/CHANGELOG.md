@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.0] - 2025-11-21
+
+### Added
+- Credits splash screen displaying on addon startup
+- QR code linking to GitHub repository on credits screen
+- Version number display on credits screen
+- `show_credits` configuration option (enabled by default)
+- Automatic version detection from config.yaml
+
+### Changed
+- Progress bars now support custom units (%, °C, °F)
+- `draw_progress_bar()` accepts `unit` parameter for flexible value display
+- CPU temperature now displays actual temperature value instead of percentage
+- Backup date format changed to DD/MM/YY on HA Status screen
+- CPU screen now uses horizontal progress bar for temperature display
+
+### Improved
+- Credits screen shows once at startup, then never again
+- Temperature progress bar fills based on 20-80°C (or 68-176°F) range
+- More intuitive temperature visualization on CPU screen
+
 ## [1.14.0] - 2025-11-21
 
 ### Changed

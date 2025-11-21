@@ -52,7 +52,7 @@ HA_API_URL = 'http://supervisor/core/api'
 class ArgonOLED:
     """Argon ONE OLED Display Manager"""
     
-    def __init__(self, screen_list, switch_duration=30, temp_unit='C', debug_logging=False):
+    def __init__(self, screen_list, switch_duration=30, temp_unit='C', debug_logging=False, show_credits=True, version="1.0.0"):
         """Initialize the OLED display"""
         try:
             self.serial = i2c(port=I2C_BUS, address=I2C_ADDRESS)
@@ -66,6 +66,9 @@ class ArgonOLED:
         self.switch_duration = switch_duration
         self.temp_unit = temp_unit
         self.debug_logging = debug_logging
+        self.show_credits = show_credits
+        self.version = version
+        self.credits_shown = False
         self.current_screen = 0
         self.last_switch = time.time()
         self.button_action = None  # For button press communication
@@ -471,6 +474,13 @@ class ArgonOLED:
         self.debug_log(f"Switch duration: {self.switch_duration}s")
         self.debug_log(f"Temperature unit: {self.temp_unit}")
         
+        # Show credits splash screen if enabled
+        if self.show_credits and not self.credits_shown:
+            self.debug_log("Displaying credits splash screen")
+            self.renderer.draw_credits(version=self.version)
+            self.credits_shown = True
+            time.sleep(5)  # Show for 5 seconds
+        
         # Start button monitoring thread if GPIO is available
         if GPIO_AVAILABLE:
             button_thread = threading.Thread(target=self.button_monitor, daemon=True)
@@ -527,9 +537,13 @@ def main():
     switch_duration = int(os.environ.get('SWITCH_DURATION', '30'))
     temp_unit = os.environ.get('TEMP_UNIT', 'C')
     debug_logging = os.environ.get('DEBUG_LOGGING', 'false').lower() in ('true', '1', 'yes')
+    show_credits = os.environ.get('SHOW_CREDITS', 'true').lower() in ('true', '1', 'yes')
+    
+    # Get version from environment (set by run.sh from config.yaml)
+    version = os.environ.get('ADDON_VERSION', '1.0.0')
     
     # Create and run the OLED display
-    oled = ArgonOLED(screen_list, switch_duration, temp_unit, debug_logging)
+    oled = ArgonOLED(screen_list, switch_duration, temp_unit, debug_logging, show_credits, version)
     oled.run()
 
 
