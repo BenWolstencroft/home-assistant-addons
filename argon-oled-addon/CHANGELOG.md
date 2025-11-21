@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.1] - 2025-11-21
+
+### Improved
+- Reduced header bar height from 14px to 12px for more usable screen space
+- Moved header text up 2px for better vertical alignment
+- Adjusted CPU temperature section positioning (moved up 2px)
+- Optimized vertical spacing across all screens
+
 ## [1.15.0] - 2025-11-21
 
 ### Added

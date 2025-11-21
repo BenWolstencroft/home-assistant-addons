@@ -6,14 +6,31 @@ This add-on brings the functionality of the Argon ONE OLED display to Home Assis
 
 ## Features
 
-- 🖥️ Display system information on Argon ONE OLED screen
-- 📊 Multiple screens: Logo, Clock, CPU, RAM, Storage, Temperature, IP, QR Code, HA Status
+### Display Screens
+- 🖥️ **Logo Screen** - Argon ONE branding with decorative borders
+- 🕐 **Clock Screen** - Digital 7-segment style time display with date
+- 💻 **CPU Screen** - Usage percentage and temperature with progress bars
+- 🧠 **RAM Screen** - Memory usage with detailed statistics
+- 💾 **Storage Screen** - Disk space usage and availability
+- 🌡️ **Temperature Screen** - Large temperature display with status indicator
+- 🌐 **IP Screen** - Network IP address and connection status
+- 📱 **QR Code Screen** - Scannable QR code for quick HA access
+- 🏠 **HA Status Screen** - Updates available and last backup date
+- 🎉 **Credits Screen** - Startup splash with GitHub QR code and version
+
+### Core Features
 - 🔄 Automatic screen rotation with configurable duration
 - 🌡️ Temperature display in Celsius or Fahrenheit
-- ⚡ Real-time system monitoring
-- 📱 QR code for quick Home Assistant access from mobile devices
-- 🏠 Home Assistant system status monitoring (updates, backups)
-- 🔘 Physical button support (GPIO 4) to manually cycle through screens
+- ⚡ Real-time system monitoring with modular architecture
+- 📊 Progress bars with customizable units (%, °C, °F)
+- 🔘 Physical button support (GPIO 4):
+  - Single press: Next screen
+  - Double press: Previous screen
+  - Long press (6+ seconds): Jump to first screen
+  - Hold 10 seconds: Reboot system (with confirmation)
+  - Hold 15 seconds: Shutdown system (with confirmation)
+- 🧪 Comprehensive unit test suite (100+ tests)
+- 🐛 Debug logging option for troubleshooting
 
 ## Installation
 
@@ -44,13 +61,15 @@ Example configuration:
 temp_unit: C
 switch_duration: 30
 screen_list: "logo clock cpu storage ram temp ip qr hastatus"
+debug_logging: false
+show_credits: true
 ```
 
 ### Option: `temp_unit`
 
 Temperature display unit.
 
-- **C** - Celsius
+- **C** - Celsius (default)
 - **F** - Fahrenheit
 
 Default: `C`
@@ -68,19 +87,37 @@ Default: `30`
 Space-separated list of screens to display in rotation.
 
 Available screens:
-- `logo` - Argon ONE logo (supports custom images)
-- `clock` - Date and time
-- `cpu` - CPU information
-- `ram` - Memory information
-- `storage` - Disk information
-- `temp` - Temperature display
-- `ip` - IP address (host IP)
+- `logo` - Argon ONE logo with decorative borders
+- `clock` - Date and time with 7-segment digits
+- `cpu` - CPU usage and temperature with progress bars
+- `ram` - Memory usage statistics with progress bar
+- `storage` - Disk space information with progress bar
+- `temp` - Large temperature display with status classification
+- `ip` - Network IP address with connection status
 - `qr` - QR code for Home Assistant URL
-- `hastatus` - Home Assistant system status
+- `hastatus` - HA system status (updates, backups)
 
 Example: `"logo clock cpu ram qr hastatus"`
 
-Default: `"logo clock cpu storage ram temp ip qr hastatus"`
+Default: `"logo qr hastatus clock cpu storage ram temp ip"`
+
+### Option: `debug_logging`
+
+Enable detailed debug logging for troubleshooting.
+
+- **true** - Enable debug logs
+- **false** - Normal logging (default)
+
+Default: `false`
+
+### Option: `show_credits`
+
+Show credits splash screen on startup with GitHub QR code and version number.
+
+- **true** - Show credits screen once at startup (default)
+- **false** - Skip credits screen
+
+Default: `true`
 
 ## Hardware Requirements
 
@@ -120,16 +157,48 @@ Default: `"logo clock cpu storage ram temp ip qr hastatus"`
 - Make sure you've selected the correct temp_unit (C or F)
 - The temperature sensor reads from the Raspberry Pi's CPU
 
+## Architecture
+
+This add-on uses a modular Python architecture:
+
+- **argon_oled.py** - Main orchestrator (screen rotation, button monitoring, power management)
+- **system_info.py** - System metrics collection (CPU, memory, disk, temperature)
+- **supervisor_api.py** - Home Assistant Supervisor API client
+- **screens.py** - OLED screen rendering logic (all draw methods)
+- **tests/** - Comprehensive unit test suite (100+ tests, hardware-independent)
+
+The modular design allows for:
+- Easy testing without physical hardware
+- Clean separation of concerns
+- Simple addition of new screens
+- Cross-platform development (Windows, Linux, Mac)
+
+## Button Controls
+
+The physical button on GPIO 4 provides multiple functions:
+
+| Action | Function |
+|--------|----------|
+| Single press | Next screen |
+| Double press | Previous screen |
+| Long press (6s) | Jump to first screen |
+| Hold 10s | Reboot system* |
+| Hold 15s | Shutdown system* |
+
+*Requires `hassio_role: manager` permission. A 5-second confirmation countdown is displayed before executing power commands.
+
 ## Support
 
 For issues, questions, or contributions:
-- GitHub Issues: [https://github.com/BenWolstencroft/home-assistant-addons](https://github.com/BenWolstencroft/home-assistant-addons)
+- GitHub Repository: [https://github.com/BenWolstencroft/home-assistant-addons](https://github.com/BenWolstencroft/home-assistant-addons)
 - Home Assistant Community: [https://community.home-assistant.io/t/argon-indistria-oled-module-one-v5-addon/952927](https://community.home-assistant.io/t/argon-indistria-oled-module-one-v5-addon/952927)
 
 ## Credits
 
+Developed by Ben Wolstencroft
+
 Based on the Argon ONE setup script from Argon40.
-Converted to Home Assistant add-on format.
+Converted to Home Assistant add-on format with extensive enhancements.
 
 ## License
 

@@ -22,9 +22,9 @@ class ScreenRenderer:
     
     def draw_header(self, draw, text, icon=""):
         """Draw inverted header with optional icon"""
-        draw.rectangle((0, 0, 127, 14), fill=255)
+        draw.rectangle((0, 0, 127, 12), fill=255)
         full_text = f"{icon} {text}" if icon else text
-        draw.text((5, 2), full_text, font=self.font_medium, fill=0)
+        draw.text((5, 0), full_text, font=self.font_medium, fill=0)
     
     def draw_progress_bar(self, draw, x, y, width, height, percentage, font=None, unit="%", style="solid"):
         """Draw styled progress bar with value text to the right"""
@@ -52,7 +52,7 @@ class ScreenRenderer:
         # Draw value text to the right of the bar
         if font:
             text_x = x + width + 8
-            draw.text((text_x, y), f"{percentage:.0f}{unit}", font=font, fill=255)
+            draw.text((text_x, y - 2), f"{percentage:.0f}{unit}", font=font, fill=255)
     
     def _draw_segment_digit(self, draw, x, y, digit, scale=1.0):
         """Draw a 7-segment style digit"""
@@ -126,7 +126,7 @@ class ScreenRenderer:
             
             # Draw HH:MM:SS in segmented style with slightly smaller digits to fit all 6
             x_offset = 2
-            scale = 1.5
+            scale = 1.4                  
             # Calculate actual digit width: seg_h + seg_w + seg_h = thickness + width + thickness
             digit_width = int(2 * scale) + int(8 * scale) + int(2 * scale)  # 18 pixels
             digit_spacing = 2  # Gap between digits
@@ -174,13 +174,13 @@ class ScreenRenderer:
             
             # CPU Temperature
             temp_unit = "°F" if self.temp_unit == 'F' else "°C"
-            draw.text((5, 45), "Temp:", font=self.font_small, fill=255)
+            draw.text((5, 43), "Temp:", font=self.font_small, fill=255)
             
             # Temperature progress bar (assume 20-80°C range)
             max_temp = 80 if self.temp_unit == 'C' else 176
             min_temp = 20 if self.temp_unit == 'C' else 68
             temp_percent = max(0, min(100, ((cpu_temp - min_temp) / (max_temp - min_temp)) * 100))
-            self.draw_progress_bar(draw, 5, 57, 90, 6, cpu_temp, font=self.font_small, unit=temp_unit)
+            self.draw_progress_bar(draw, 5, 55, 90, 6, cpu_temp, font=self.font_small, unit=temp_unit)
     
     def draw_ram(self, system_info):
         """Draw RAM information"""
