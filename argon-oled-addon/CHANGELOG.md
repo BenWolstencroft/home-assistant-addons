@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.13.3] - 2025-11-21
+
+### Fixed
+- Fixed memory and storage screen crashes due to incorrect return value unpacking
+- draw_ram() and draw_storage() now correctly handle 3-value returns from system_info methods
+
 ## [1.13.2] - 2025-11-20
 
 ### Added

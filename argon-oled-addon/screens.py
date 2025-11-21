@@ -193,9 +193,9 @@ class ScreenRenderer:
     def draw_ram(self, system_info):
         """Draw RAM information"""
         with canvas(self.device) as draw:
-            mem_percent, mem_total_gb = system_info.get_memory_usage()
-            mem_used_mb = (mem_total_gb * 1024) * (mem_percent / 100)
-            mem_total_mb = mem_total_gb * 1024
+            mem_used, mem_total, mem_percent = system_info.get_memory_usage()
+            mem_used_mb = mem_used
+            mem_total_mb = mem_total
             
             self.draw_header(draw, "Memory")
             
@@ -207,8 +207,7 @@ class ScreenRenderer:
     def draw_storage(self, system_info):
         """Draw storage information"""
         with canvas(self.device) as draw:
-            disk_percent, disk_total = system_info.get_disk_usage()
-            disk_used = disk_total * (disk_percent / 100)
+            disk_used, disk_total, disk_percent = system_info.get_disk_usage()
             
             self.draw_header(draw, "Storage")
             
