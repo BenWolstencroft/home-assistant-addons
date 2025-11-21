@@ -11,9 +11,11 @@ RUN apk add --no-cache \
     i2c-tools \
     bash
 
+# Copy requirements file
+COPY requirements.txt /tmp/
+
 # Install Python packages for I2C communication
-RUN pip3 install --no-cache-dir --break-system-packages \
-    smbus2
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 
 # Copy data
 COPY run.sh /

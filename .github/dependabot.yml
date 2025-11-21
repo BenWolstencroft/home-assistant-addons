@@ -5,9 +5,22 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip" # See documentation for possible values
-    directories:
-      - "argon-fan-addon"
-      - "argon-oled-addon"
+  - package-ecosystem: "pip"
+    directory: "/argon-fan-addon"
+    schedule:
+      interval: "weekly"
+  
+  - package-ecosystem: "pip"
+    directory: "/argon-oled-addon"
+    schedule:
+      interval: "weekly"
+  
+  - package-ecosystem: "docker"
+    directory: "/argon-fan-addon"
+    schedule:
+      interval: "weekly"
+  
+  - package-ecosystem: "docker"
+    directory: "/argon-oled-addon"
     schedule:
       interval: "weekly"

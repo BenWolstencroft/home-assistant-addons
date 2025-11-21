@@ -14,14 +14,13 @@ RUN apk add --no-cache \
     libgpiod \
     py3-libgpiod
 
-# Install Python packages
-RUN pip3 install --no-cache-dir \
-    smbus2 \
-    requests \
-    cbor2 \
-    qrcode
+# Copy requirements file
+COPY requirements.txt /tmp/
 
-# Install luma packages using system Pillow
+# Install Python packages
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+
+# Install luma packages using system Pillow (no-deps to avoid Pillow reinstall)
 RUN pip3 install --no-cache-dir --no-deps luma.core luma.oled
 
 # Copy data
