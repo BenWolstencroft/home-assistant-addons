@@ -1,0 +1,11 @@
+build_from:
+  armhf: ghcr.io/home-assistant/armhf-base:latest
+  armv7: ghcr.io/home-assistant/armv7-base:latest
+  aarch64: ghcr.io/home-assistant/aarch64-base:latest
+  amd64: ghcr.io/home-assistant/amd64-base:latest
+  i386: ghcr.io/home-assistant/i386-base:latest
+labels:
+  org.opencontainers.image.title: "GPSLive Device Tracker"
+  org.opencontainers.image.description: "Vehicle tracking integration using GPSLive API"
+  org.opencontainers.image.source: "https://github.com/BenWolstencroft/home-assistant-addons"
+  org.opencontainers.image.licenses: "MIT"

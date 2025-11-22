@@ -1,0 +1,2 @@
+# Python requirements for GPSLive Device Tracker addon
+requests>=2.31.0

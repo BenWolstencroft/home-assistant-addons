@@ -1,0 +1,24 @@
+name: GPSLive Device Tracker
+version: 0.1.0
+slug: gpslive_device_tracker
+description: Vehicle tracking integration using GPSLive API
+url: https://github.com/BenWolstencroft/home-assistant-addons
+arch:
+  - armhf
+  - armv7
+  - aarch64
+  - amd64
+  - i386
+init: false
+startup: application
+boot: auto
+map:
+  - config:rw
+homeassistant_api: true
+hassio_api: true
+gpio: false
+apparmor: false
+options:
+  debug_logging: false
+schema:
+  debug_logging: bool
