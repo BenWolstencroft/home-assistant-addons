@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0] - 2025-11-23
+
+### Added
+- Boiler thermostat management based on TRV heating demand
+- Configuration option for boiler thermostat entity
+- Automatic boost triggering when any TRV is actively heating
+- Boost extension every polling interval (keeps 15 minutes ahead)
+- Automatic boost cancellation when no TRVs are heating
+- Entity selector dropdowns with climate entity filtering
+- Smart preset mode detection and restoration
+
+### Changed
+- Enhanced logging for heating demand detection
+- Improved service call error handling
+
 ## [0.2.0] - 2025-11-21
 
 ### Added
