@@ -1,6 +1,6 @@
 {
   "name": "Active Heating Manager",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "slug": "active_heating_manager",
   "description": "Smart heating management for Home Assistant",
   "url": "https://github.com/BenWolstencroft/home-assistant-addons",
@@ -13,11 +13,13 @@
   "options": {
     "debug_logging": false,
     "trv_entities": [],
+    "boiler_thermostat_entity": "",
     "polling_interval": 300
   },
   "schema": {
     "debug_logging": "bool",
-    "trv_entities": ["str"],
+    "trv_entities": ["select(climate)?"],
+    "boiler_thermostat_entity": "select(climate)?",
     "polling_interval": "int(10,3600)"
   }
 }
