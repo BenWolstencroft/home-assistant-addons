@@ -18,8 +18,8 @@
   },
   "schema": {
     "debug_logging": "bool",
-    "trv_entities": ["select(climate)?"],
-    "boiler_thermostat_entity": "select(climate)?",
+    "trv_entities": ["str?"],
+    "boiler_thermostat_entity": "str?",
     "polling_interval": "int(10,3600)"
   }
 }
