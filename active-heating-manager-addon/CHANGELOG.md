@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.2] - 2025-11-24
+
+### Fixed
+- Dynamic temperature calculation for valve positions 0-25%
+- Now correctly scales from current boiler temp (0%) to current + 0.5°C (25%)
+- Previous version incorrectly scaled from manual_off_temp, causing unnecessarily low target temperatures
+- Example: At 12.5% with 19.8°C current temp, now targets 20.0°C instead of 17.0°C
+
 ## [0.7.1] - 2025-11-24
 
 ### Improved

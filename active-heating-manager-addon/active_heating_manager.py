@@ -355,12 +355,13 @@ def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_t
     # At 25%, set to current temp + 0.5°C
     # Between 25% and 100%, scale linearly to manual_on_temp
     if avg_valve_position <= 25:
-        # Scale from manual_off_temp at 0% to current_temp + 0.5 at 25%
+        # Scale from current_temp at 0% to current_temp + 0.5 at 25%
+        target_at_0 = current_boiler_temp
         target_at_25 = current_boiler_temp + 0.5
-        logger.debug(f"Valve position <= 25%: scaling from {manual_off_temp}°C (0%) to {target_at_25}°C (25%)")
+        logger.debug(f"Valve position <= 25%: scaling from {target_at_0}°C (0%) to {target_at_25}°C (25%)")
         # Linear interpolation between 0% and 25%
-        target_temp = manual_off_temp + (target_at_25 - manual_off_temp) * (avg_valve_position / 25)
-        logger.debug(f"Interpolation: {manual_off_temp} + ({target_at_25} - {manual_off_temp}) * ({avg_valve_position} / 25) = {target_temp}°C")
+        target_temp = target_at_0 + (target_at_25 - target_at_0) * (avg_valve_position / 25)
+        logger.debug(f"Interpolation: {target_at_0} + ({target_at_25} - {target_at_0}) * ({avg_valve_position} / 25) = {target_temp}°C")
     else:
         # Scale from current_temp + 0.5 at 25% to manual_on_temp at 100%
         target_at_25 = current_boiler_temp + 0.5
