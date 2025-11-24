@@ -1,5 +1,5 @@
 name: Active Heating Manager
-version: 0.5.0
+version: 0.6.0
 slug: active_heating_manager
 description: Smart heating management for Home Assistant
 url: https://github.com/BenWolstencroft/home-assistant-addons
@@ -26,6 +26,7 @@ options:
   manual_on_temperature: 21
   manual_off_temperature: 14
   check_valve_state: true
+  use_dynamic_temperature: true
   polling_interval: 300
 schema:
   debug_logging: bool
@@ -35,4 +36,5 @@ schema:
   manual_on_temperature: int(15,35)
   manual_off_temperature: int(5,20)
   check_valve_state: bool
+  use_dynamic_temperature: bool
   polling_interval: int(10,3600)

@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.6.0] - 2025-11-24
+
+### Added
+- Dynamic temperature calculation based on average valve position percentage
+- `use_dynamic_temperature` configuration option (default: true)
+- Automatic detection of valve position sensors (e.g., sensor.xxx_position)
+- Proportional heating control: boiler temperature adjusts based on heating demand intensity
+- Smart temperature scaling:
+  - 0% valve position → manual_off_temperature
+  - 25% valve position → current boiler temp + 0.5°C
+  - 25-100% → scales linearly to manual_on_temperature
+
+### Changed
+- All boiler thermostat temperatures now rounded to nearest 0.5°C (whole or half degrees)
+- Temperature calculation considers current boiler temperature for more efficient control
+
+### Improved
+- More granular heating control based on actual valve demand
+- Prevents overshooting by adjusting boiler temperature proportionally
+- Better energy efficiency through demand-responsive temperature control
+
 ## [0.5.0] - 2025-11-24
 
 ### Added

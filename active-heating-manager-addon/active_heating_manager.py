@@ -37,6 +37,7 @@ def load_config():
             'manual_on_temperature': 21,
             'manual_off_temperature': 14,
             'check_valve_state': True,
+            'use_dynamic_temperature': True,
             'polling_interval': 300
         }
 
@@ -82,6 +83,8 @@ def call_service(domain, service, entity_id, service_data=None):
 
 def set_manual_temperature_thermostat(entity_id, target_temperature):
     """Set thermostat to manual mode with high temperature to trigger heating."""
+    # Round to nearest 0.5°C (whole or half degrees)
+    target_temperature = round(target_temperature * 2) / 2
     logger.info(f"Setting thermostat {entity_id} to manual mode with temperature {target_temperature}°C")
     
     # First, set to manual/away/none preset to enable manual temperature control
@@ -108,6 +111,8 @@ def set_manual_temperature_thermostat(entity_id, target_temperature):
 
 def set_manual_off_temperature_thermostat(entity_id, off_temperature):
     """Set thermostat to manual mode with low temperature when no heating demand."""
+    # Round to nearest 0.5°C (whole or half degrees)
+    off_temperature = round(off_temperature * 2) / 2
     logger.info(f"Setting thermostat {entity_id} to manual mode with off temperature {off_temperature}°C")
     
     # First, set to manual/none preset to enable manual temperature control
@@ -206,11 +211,90 @@ def get_valve_state(trv_entity_id):
     return True
 
 
-def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True):
+def get_valve_position(trv_entity_id):
+    """Get the valve position percentage for a TRV. Returns None if not available."""
+    if '.' not in trv_entity_id:
+        return None
+    
+    # Extract the name part
+    domain, name = trv_entity_id.split('.', 1)
+    
+    # Try common valve position entity patterns
+    position_entity_patterns = [
+        f'sensor.{name}_position',
+        f'sensor.{name.replace("_trv", "")}_position',
+        f'number.{name}_position',
+    ]
+    
+    for position_entity_id in position_entity_patterns:
+        state_data = get_entity_state(position_entity_id)
+        if state_data:
+            state = state_data.get('state', 'unknown')
+            try:
+                position = float(state)
+                logger.debug(f"Found valve position sensor {position_entity_id} with position: {position}%")
+                return position
+            except (ValueError, TypeError):
+                logger.debug(f"Invalid position value '{state}' for {position_entity_id}")
+                continue
+    
+    logger.debug(f"No valve position sensor found for {trv_entity_id}")
+    return None
+
+
+def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_temp, manual_off_temp):
+    """Calculate target temperature based on average valve position.
+    
+    Args:
+        avg_valve_position: Average valve position percentage (0-100)
+        boiler_entity: Boiler thermostat entity ID
+        manual_on_temp: Maximum temperature to set
+        manual_off_temp: Minimum temperature to set
+    
+    Returns:
+        Target temperature in degrees Celsius
+    """
+    if avg_valve_position <= 0:
+        return manual_off_temp
+    
+    # Get current boiler temperature
+    state_data = get_entity_state(boiler_entity)
+    current_boiler_temp = manual_off_temp
+    if state_data:
+        attributes = state_data.get('attributes', {})
+        current_temp = attributes.get('current_temperature')
+        if current_temp is not None:
+            try:
+                current_boiler_temp = float(current_temp)
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid current temperature value: {current_temp}")
+    
+    # At 25%, set to current temp + 0.5°C
+    # Between 25% and 100%, scale linearly to manual_on_temp
+    if avg_valve_position <= 25:
+        # Scale from manual_off_temp at 0% to current_temp + 0.5 at 25%
+        target_at_25 = current_boiler_temp + 0.5
+        # Linear interpolation between 0% and 25%
+        target_temp = manual_off_temp + (target_at_25 - manual_off_temp) * (avg_valve_position / 25)
+    else:
+        # Scale from current_temp + 0.5 at 25% to manual_on_temp at 100%
+        target_at_25 = current_boiler_temp + 0.5
+        # Linear interpolation between 25% and 100%
+        target_temp = target_at_25 + (manual_on_temp - target_at_25) * ((avg_valve_position - 25) / 75)
+    
+    # Ensure we stay within bounds
+    target_temp = max(manual_off_temp, min(manual_on_temp, target_temp))
+    
+    # Round to nearest 0.5°C (whole or half degrees)
+    return round(target_temp * 2) / 2
+
+
+def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True, use_dynamic_temperature=True):
     """Poll all configured TRV entities and manage boiler based on heating demand."""
     logger.info(f"Polling {len(trv_entities)} TRV entities...")
     
     any_trv_heating = False
+    valve_positions = []  # Store positions of valves that are heating
     
     for entity_id in trv_entities:
         state_data = get_entity_state(entity_id)
@@ -235,27 +319,49 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                 # Check if this TRV is actively heating
                 if hvac_action == 'heating':
                     # Check valve state if enabled
+                    valve_open = True
                     if check_valve_state:
                         valve_open = get_valve_state(entity_id)
                         logger.info(f"  Valve state: {'open' if valve_open else 'closed'}")
-                        
-                        if valve_open:
-                            any_trv_heating = True
-                            logger.info(f"  -> TRV is heating with valve open!")
-                        else:
-                            logger.info(f"  -> TRV is heating but valve is closed, ignoring demand")
-                    else:
+                    
+                    if valve_open:
                         any_trv_heating = True
-                        logger.info(f"  -> TRV is heating!")
+                        logger.info(f"  -> TRV is heating with valve open!")
+                        
+                        # Get valve position for dynamic temperature calculation
+                        if use_dynamic_temperature:
+                            position = get_valve_position(entity_id)
+                            if position is not None:
+                                valve_positions.append(position)
+                                logger.info(f"  Valve position: {position}%")
+                    else:
+                        logger.info(f"  -> TRV is heating but valve is closed, ignoring demand")
         else:
             logger.warning(f"Could not retrieve state for {entity_id}")
+    
+    # Calculate average valve position
+    avg_valve_position = 0
+    if valve_positions:
+        avg_valve_position = sum(valve_positions) / len(valve_positions)
+        logger.info(f"Average valve position across {len(valve_positions)} heating TRVs: {avg_valve_position:.1f}%")
     
     # Manage boiler based on heating demand and configured mode
     if boiler_entity:
         if any_trv_heating:
             if boiler_mode == 'thermostat':
-                logger.info(f"At least one TRV is heating - setting manual temperature to {manual_on_temperature}°C")
-                set_manual_temperature_thermostat(boiler_entity, manual_on_temperature)
+                # Calculate target temperature based on valve positions if dynamic mode enabled
+                if use_dynamic_temperature and valve_positions:
+                    target_temp = calculate_dynamic_temperature(
+                        avg_valve_position, 
+                        boiler_entity, 
+                        manual_on_temperature, 
+                        manual_off_temperature
+                    )
+                    logger.info(f"At least one TRV is heating - setting dynamic temperature to {target_temp}°C (based on {avg_valve_position:.1f}% avg valve position)")
+                    set_manual_temperature_thermostat(boiler_entity, target_temp)
+                else:
+                    logger.info(f"At least one TRV is heating - setting manual temperature to {manual_on_temperature}°C")
+                    set_manual_temperature_thermostat(boiler_entity, manual_on_temperature)
             else:  # toggle mode
                 logger.info("At least one TRV is heating - turning on boiler toggle")
                 turn_on_boiler_toggle(boiler_entity)
@@ -290,6 +396,7 @@ def main():
     manual_on_temperature = config.get('manual_on_temperature', 21)
     manual_off_temperature = config.get('manual_off_temperature', 14)
     check_valve_state = config.get('check_valve_state', True)
+    use_dynamic_temperature = config.get('use_dynamic_temperature', True)
     polling_interval = config.get('polling_interval', 300)
     
     logger.info(f"Configured with {len(trv_entities)} TRV entities")
@@ -298,6 +405,7 @@ def main():
     if boiler_mode == 'thermostat':
         logger.info(f"Manual ON temperature: {manual_on_temperature}°C")
         logger.info(f"Manual OFF temperature: {manual_off_temperature}°C")
+        logger.info(f"Use dynamic temperature: {use_dynamic_temperature}")
     logger.info(f"Check valve state: {check_valve_state}")
     logger.info(f"Polling interval: {polling_interval} seconds")
     
@@ -310,7 +418,7 @@ def main():
     try:
         # Main loop
         while True:
-            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state)
+            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state, use_dynamic_temperature)
             logger.debug(f"Sleeping for {polling_interval} seconds...")
             time.sleep(polling_interval)
             
