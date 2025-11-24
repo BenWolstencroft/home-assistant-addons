@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0] - 2025-11-24
+
+### Added
+- Home Assistant sensor entities for monitoring heating status:
+  - `sensor.active_heating_manager_status` - Overall status (heating/idle)
+  - `sensor.active_heating_manager_trvs_heating` - Count of TRVs currently heating
+  - `sensor.active_heating_manager_avg_valve_position` - Average valve position percentage
+  - `sensor.active_heating_manager_target_temp` - Current boiler target temperature
+- Real-time statistics published every polling interval
+- Integration with Home Assistant dashboards, automations, and history
+
+### Improved
+- Better visibility into heating system operation
+- Enable advanced automations based on heating demand metrics
+- Enhanced monitoring and diagnostics capabilities
+
 ## [0.6.0] - 2025-11-24
 
 ### Added

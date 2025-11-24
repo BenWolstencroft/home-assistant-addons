@@ -81,6 +81,29 @@ def call_service(domain, service, entity_id, service_data=None):
         return False
 
 
+def set_entity_state(entity_id, state, attributes=None):
+    """Set entity state in Home Assistant."""
+    headers = {
+        'Authorization': f'Bearer {SUPERVISOR_TOKEN}',
+        'Content-Type': 'application/json',
+    }
+    
+    data = {
+        'state': state,
+        'attributes': attributes or {}
+    }
+    
+    try:
+        url = f'{HA_API_URL}/states/{entity_id}'
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        response.raise_for_status()
+        logger.debug(f"Successfully set state for {entity_id} to {state}")
+        return True
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to set state for {entity_id}: {e}")
+        return False
+
+
 def set_manual_temperature_thermostat(entity_id, target_temperature):
     """Set thermostat to manual mode with high temperature to trigger heating."""
     # Round to nearest 0.5°C (whole or half degrees)
@@ -242,6 +265,58 @@ def get_valve_position(trv_entity_id):
     return None
 
 
+def publish_heating_stats(heating_active, trv_count_heating, avg_valve_position, target_temp, boiler_mode):
+    """Publish heating statistics as sensor entities to Home Assistant."""
+    
+    # Main heating status sensor
+    set_entity_state(
+        'sensor.active_heating_manager_status',
+        'heating' if heating_active else 'idle',
+        {
+            'friendly_name': 'Active Heating Manager Status',
+            'icon': 'mdi:radiator' if heating_active else 'mdi:radiator-off',
+            'trvs_heating': trv_count_heating,
+            'mode': boiler_mode
+        }
+    )
+    
+    # TRVs heating count sensor
+    set_entity_state(
+        'sensor.active_heating_manager_trvs_heating',
+        str(trv_count_heating),
+        {
+            'friendly_name': 'TRVs Heating',
+            'icon': 'mdi:counter',
+            'unit_of_measurement': 'TRVs'
+        }
+    )
+    
+    # Average valve position sensor (if available)
+    if avg_valve_position is not None:
+        set_entity_state(
+            'sensor.active_heating_manager_avg_valve_position',
+            str(round(avg_valve_position, 1)),
+            {
+                'friendly_name': 'Average Valve Position',
+                'icon': 'mdi:valve',
+                'unit_of_measurement': '%'
+            }
+        )
+    
+    # Target boiler temperature sensor (only in thermostat mode)
+    if boiler_mode == 'thermostat' and target_temp is not None:
+        set_entity_state(
+            'sensor.active_heating_manager_target_temp',
+            str(target_temp),
+            {
+                'friendly_name': 'Boiler Target Temperature',
+                'icon': 'mdi:thermometer',
+                'unit_of_measurement': '°C',
+                'device_class': 'temperature'
+            }
+        )
+
+
 def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_temp, manual_off_temp):
     """Calculate target temperature based on average valve position.
     
@@ -340,10 +415,17 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
             logger.warning(f"Could not retrieve state for {entity_id}")
     
     # Calculate average valve position
-    avg_valve_position = 0
+    avg_valve_position = None
+    trv_count_heating = sum(1 for _ in range(len([e for e in trv_entities if any_trv_heating])))
     if valve_positions:
         avg_valve_position = sum(valve_positions) / len(valve_positions)
         logger.info(f"Average valve position across {len(valve_positions)} heating TRVs: {avg_valve_position:.1f}%")
+        trv_count_heating = len(valve_positions)  # More accurate count
+    elif any_trv_heating:
+        # Count TRVs that are heating even if no position sensors
+        trv_count_heating = len([e for e in trv_entities if any_trv_heating])  # This is a simplified count
+    
+    target_temp = None
     
     # Manage boiler based on heating demand and configured mode
     if boiler_entity:
@@ -360,6 +442,7 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                     logger.info(f"At least one TRV is heating - setting dynamic temperature to {target_temp}°C (based on {avg_valve_position:.1f}% avg valve position)")
                     set_manual_temperature_thermostat(boiler_entity, target_temp)
                 else:
+                    target_temp = manual_on_temperature
                     logger.info(f"At least one TRV is heating - setting manual temperature to {manual_on_temperature}°C")
                     set_manual_temperature_thermostat(boiler_entity, manual_on_temperature)
             else:  # toggle mode
@@ -367,6 +450,7 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                 turn_on_boiler_toggle(boiler_entity)
         else:
             if boiler_mode == 'thermostat':
+                target_temp = manual_off_temperature
                 logger.info(f"No TRVs currently heating - setting manual temperature to {manual_off_temperature}°C")
                 set_manual_off_temperature_thermostat(boiler_entity, manual_off_temperature)
             else:  # toggle mode
@@ -374,6 +458,9 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                 turn_off_boiler_toggle(boiler_entity)
     elif any_trv_heating:
         logger.warning("TRVs are heating but no boiler entity configured")
+    
+    # Publish statistics to Home Assistant
+    publish_heating_stats(any_trv_heating, trv_count_heating, avg_valve_position, target_temp, boiler_mode)
     
     return any_trv_heating
 
