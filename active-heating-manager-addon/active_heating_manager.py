@@ -36,6 +36,7 @@ def load_config():
             'boiler_mode': 'thermostat',
             'manual_on_temperature': 21,
             'manual_off_temperature': 14,
+            'check_valve_state': True,
             'polling_interval': 300
         }
 
@@ -169,7 +170,43 @@ def turn_off_boiler_toggle(entity_id):
     return call_service(domain, 'turn_off', entity_id)
 
 
-def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14):
+def get_valve_state(trv_entity_id):
+    """Check if the valve for a TRV is open. Returns True if open/unknown, False if closed."""
+    # Convert climate.xxx_trv to binary_sensor.xxx_trv_valve_state
+    if '.' not in trv_entity_id:
+        return True  # If invalid entity format, assume valve is open
+    
+    # Extract the name part
+    domain, name = trv_entity_id.split('.', 1)
+    
+    # Try common valve state entity patterns
+    valve_entity_patterns = [
+        f'binary_sensor.{name}_valve_state',
+        f'binary_sensor.{name.replace("_trv", "")}_valve_state',
+        f'sensor.{name}_valve_state',
+    ]
+    
+    for valve_entity_id in valve_entity_patterns:
+        state_data = get_entity_state(valve_entity_id)
+        if state_data:
+            state = state_data.get('state', 'unknown').lower()
+            logger.debug(f"Found valve sensor {valve_entity_id} with state: {state}")
+            
+            # Check for open states
+            if state in ['open', 'opened', 'on', 'true']:
+                return True
+            elif state in ['closed', 'off', 'false']:
+                return False
+            else:
+                logger.debug(f"Unknown valve state '{state}', assuming open")
+                return True
+    
+    # No valve sensor found, assume valve is operational
+    logger.debug(f"No valve sensor found for {trv_entity_id}, assuming valve is open")
+    return True
+
+
+def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True):
     """Poll all configured TRV entities and manage boiler based on heating demand."""
     logger.info(f"Polling {len(trv_entities)} TRV entities...")
     
@@ -197,8 +234,19 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                 
                 # Check if this TRV is actively heating
                 if hvac_action == 'heating':
-                    any_trv_heating = True
-                    logger.info(f"  -> TRV is heating!")
+                    # Check valve state if enabled
+                    if check_valve_state:
+                        valve_open = get_valve_state(entity_id)
+                        logger.info(f"  Valve state: {'open' if valve_open else 'closed'}")
+                        
+                        if valve_open:
+                            any_trv_heating = True
+                            logger.info(f"  -> TRV is heating with valve open!")
+                        else:
+                            logger.info(f"  -> TRV is heating but valve is closed, ignoring demand")
+                    else:
+                        any_trv_heating = True
+                        logger.info(f"  -> TRV is heating!")
         else:
             logger.warning(f"Could not retrieve state for {entity_id}")
     
@@ -241,6 +289,7 @@ def main():
     boiler_mode = config.get('boiler_mode', 'thermostat')
     manual_on_temperature = config.get('manual_on_temperature', 21)
     manual_off_temperature = config.get('manual_off_temperature', 14)
+    check_valve_state = config.get('check_valve_state', True)
     polling_interval = config.get('polling_interval', 300)
     
     logger.info(f"Configured with {len(trv_entities)} TRV entities")
@@ -249,6 +298,7 @@ def main():
     if boiler_mode == 'thermostat':
         logger.info(f"Manual ON temperature: {manual_on_temperature}°C")
         logger.info(f"Manual OFF temperature: {manual_off_temperature}°C")
+    logger.info(f"Check valve state: {check_valve_state}")
     logger.info(f"Polling interval: {polling_interval} seconds")
     
     if not trv_entities:
@@ -260,7 +310,7 @@ def main():
     try:
         # Main loop
         while True:
-            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature)
+            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state)
             logger.debug(f"Sleeping for {polling_interval} seconds...")
             time.sleep(polling_interval)
             

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0] - 2025-11-24
+
+### Added
+- Valve state checking: Optional filtering of heating demand based on valve position
+- `check_valve_state` configuration option (default: true)
+- Automatic detection of valve state sensors using common naming patterns
+- Support for multiple valve sensor formats (binary_sensor/sensor)
+- Intelligent handling when valve sensors are not available (safe default behavior)
+
+### Improved
+- TRVs demanding heat with closed valves are now ignored (prevents unnecessary boiler activation)
+- Enhanced logging to show valve state for each TRV
+- Better debug information for valve sensor detection
+
 ## [0.4.0] - 2025-11-24
 
 ### Changed
