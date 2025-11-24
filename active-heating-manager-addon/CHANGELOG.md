@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.1] - 2025-11-24
+
+### Improved
+- Enhanced debug logging for dynamic temperature calculation
+- Step-by-step interpolation calculations now logged with actual values
+- Better visibility into boiler thermostat current temperature usage
+- Detailed logging of bounds checking and rounding operations
+- Easier troubleshooting and verification of temperature calculations
+
 ## [0.7.0] - 2025-11-24
 
 ### Added

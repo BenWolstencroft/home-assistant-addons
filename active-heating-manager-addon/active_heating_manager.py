@@ -329,7 +329,11 @@ def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_t
     Returns:
         Target temperature in degrees Celsius
     """
+    logger.debug(f"=== Dynamic Temperature Calculation ===")
+    logger.debug(f"Input: avg_valve_position={avg_valve_position}%, manual_off={manual_off_temp}°C, manual_on={manual_on_temp}°C")
+    
     if avg_valve_position <= 0:
+        logger.debug(f"Valve position is 0%, returning manual_off_temp: {manual_off_temp}°C")
         return manual_off_temp
     
     # Get current boiler temperature
@@ -338,30 +342,46 @@ def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_t
     if state_data:
         attributes = state_data.get('attributes', {})
         current_temp = attributes.get('current_temperature')
+        logger.debug(f"Boiler thermostat current_temperature attribute: {current_temp}")
         if current_temp is not None:
             try:
                 current_boiler_temp = float(current_temp)
+                logger.debug(f"Using boiler current temperature: {current_boiler_temp}°C")
             except (ValueError, TypeError):
-                logger.warning(f"Invalid current temperature value: {current_temp}")
+                logger.warning(f"Invalid current temperature value: {current_temp}, using fallback: {manual_off_temp}°C")
+    else:
+        logger.debug(f"Could not get boiler state, using fallback temperature: {manual_off_temp}°C")
     
     # At 25%, set to current temp + 0.5°C
     # Between 25% and 100%, scale linearly to manual_on_temp
     if avg_valve_position <= 25:
         # Scale from manual_off_temp at 0% to current_temp + 0.5 at 25%
         target_at_25 = current_boiler_temp + 0.5
+        logger.debug(f"Valve position <= 25%: scaling from {manual_off_temp}°C (0%) to {target_at_25}°C (25%)")
         # Linear interpolation between 0% and 25%
         target_temp = manual_off_temp + (target_at_25 - manual_off_temp) * (avg_valve_position / 25)
+        logger.debug(f"Interpolation: {manual_off_temp} + ({target_at_25} - {manual_off_temp}) * ({avg_valve_position} / 25) = {target_temp}°C")
     else:
         # Scale from current_temp + 0.5 at 25% to manual_on_temp at 100%
         target_at_25 = current_boiler_temp + 0.5
+        logger.debug(f"Valve position > 25%: scaling from {target_at_25}°C (25%) to {manual_on_temp}°C (100%)")
         # Linear interpolation between 25% and 100%
         target_temp = target_at_25 + (manual_on_temp - target_at_25) * ((avg_valve_position - 25) / 75)
+        logger.debug(f"Interpolation: {target_at_25} + ({manual_on_temp} - {target_at_25}) * (({avg_valve_position} - 25) / 75) = {target_temp}°C")
     
     # Ensure we stay within bounds
+    before_bounds = target_temp
     target_temp = max(manual_off_temp, min(manual_on_temp, target_temp))
+    if before_bounds != target_temp:
+        logger.debug(f"Applied bounds: {before_bounds}°C → {target_temp}°C")
     
     # Round to nearest 0.5°C (whole or half degrees)
-    return round(target_temp * 2) / 2
+    before_rounding = target_temp
+    target_temp = round(target_temp * 2) / 2
+    logger.debug(f"Rounded to nearest 0.5°C: {before_rounding}°C → {target_temp}°C")
+    logger.debug(f"=== Final target temperature: {target_temp}°C ===")
+    
+    return target_temp
 
 
 def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True, use_dynamic_temperature=True):
