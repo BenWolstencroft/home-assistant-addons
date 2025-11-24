@@ -32,7 +32,10 @@ def load_config():
         return {
             'debug_logging': False,
             'trv_entities': [],
-            'boiler_thermostat_entity': '',
+            'boiler_entity': '',
+            'boiler_mode': 'thermostat',
+            'manual_on_temperature': 21,
+            'manual_off_temperature': 14,
             'polling_interval': 300
         }
 
@@ -76,52 +79,97 @@ def call_service(domain, service, entity_id, service_data=None):
         return False
 
 
-def boost_boiler_thermostat(entity_id, duration_minutes=15):
-    """Boost the boiler thermostat for specified duration."""
-    logger.info(f"Boosting boiler thermostat {entity_id} for {duration_minutes} minutes")
+def set_manual_temperature_thermostat(entity_id, target_temperature):
+    """Set thermostat to manual mode with high temperature to trigger heating."""
+    logger.info(f"Setting thermostat {entity_id} to manual mode with temperature {target_temperature}°C")
     
-    # Call the climate.set_preset_mode service with 'boost' preset
-    # Most thermostats use this, but we'll also try a generic approach
-    success = call_service('climate', 'set_preset_mode', entity_id, {'preset_mode': 'boost'})
-    
-    if success:
-        # If the thermostat supports boost duration, set it
-        # This varies by thermostat model, so we try common methods
-        call_service('number', 'set_value', entity_id.replace('climate.', 'number.') + '_boost_time', 
-                    {'value': duration_minutes})
-    
-    return success
-
-
-def cancel_boost_boiler_thermostat(entity_id):
-    """Cancel boost on the boiler thermostat by returning it to schedule/auto mode."""
-    logger.info(f"Cancelling boost on boiler thermostat {entity_id}")
-    
-    # First, check the current preset mode
+    # First, set to manual/away/none preset to enable manual temperature control
     state_data = get_entity_state(entity_id)
     if state_data:
         attributes = state_data.get('attributes', {})
         current_preset = attributes.get('preset_mode', 'none')
+        current_temp = attributes.get('temperature', 0)
         
-        # Only cancel if currently in boost mode
-        if current_preset == 'boost':
-            logger.info(f"Thermostat is in boost mode, cancelling...")
-            # Try common preset modes to return to normal operation
-            # Try 'schedule' first (most common), then 'auto', then 'none'
-            for preset in ['schedule', 'auto', 'none']:
-                if call_service('climate', 'set_preset_mode', entity_id, {'preset_mode': preset}):
-                    logger.info(f"Successfully set preset to '{preset}'")
-                    return True
-            return False
-        else:
-            logger.info(f"Thermostat not in boost mode (current: {current_preset}), no action needed")
+        # If already at target temperature in a non-schedule mode, no action needed
+        if current_temp == target_temperature and current_preset != 'schedule':
+            logger.info(f"Already at target temperature {target_temperature}°C")
             return True
-    else:
-        logger.warning(f"Could not get state for {entity_id}, cannot cancel boost")
-        return False
+        
+        # Try to set preset to manual/none to allow temperature override
+        for preset in ['none', 'manual', 'away']:
+            if call_service('climate', 'set_preset_mode', entity_id, {'preset_mode': preset}):
+                logger.info(f"Set preset to '{preset}'")
+                break
+    
+    # Set the target temperature
+    return call_service('climate', 'set_temperature', entity_id, {'temperature': target_temperature})
 
 
-def poll_trv_entities(trv_entities, boiler_thermostat_entity=None):
+def set_manual_off_temperature_thermostat(entity_id, off_temperature):
+    """Set thermostat to manual mode with low temperature when no heating demand."""
+    logger.info(f"Setting thermostat {entity_id} to manual mode with off temperature {off_temperature}°C")
+    
+    # First, set to manual/none preset to enable manual temperature control
+    state_data = get_entity_state(entity_id)
+    if state_data:
+        attributes = state_data.get('attributes', {})
+        current_preset = attributes.get('preset_mode', 'none')
+        current_temp = attributes.get('temperature', 0)
+        
+        # If already at off temperature in a non-schedule mode, no action needed
+        if current_temp == off_temperature and current_preset != 'schedule':
+            logger.info(f"Already at off temperature {off_temperature}°C")
+            return True
+        
+        # Try to set preset to manual/none to allow temperature override
+        for preset in ['none', 'manual']:
+            if call_service('climate', 'set_preset_mode', entity_id, {'preset_mode': preset}):
+                logger.info(f"Set preset to '{preset}'")
+                break
+    
+    # Set the off temperature
+    return call_service('climate', 'set_temperature', entity_id, {'temperature': off_temperature})
+
+
+def turn_on_boiler_toggle(entity_id):
+    """Turn on the boiler toggle switch."""
+    logger.info(f"Turning on boiler toggle {entity_id}")
+    
+    # Check current state first
+    state_data = get_entity_state(entity_id)
+    if state_data:
+        current_state = state_data.get('state', 'unknown')
+        if current_state == 'on':
+            logger.info(f"Toggle already on, no action needed")
+            return True
+        else:
+            logger.info(f"Toggle is {current_state}, turning on...")
+    
+    # Determine domain from entity_id
+    domain = entity_id.split('.')[0] if '.' in entity_id else 'switch'
+    return call_service(domain, 'turn_on', entity_id)
+
+
+def turn_off_boiler_toggle(entity_id):
+    """Turn off the boiler toggle switch."""
+    logger.info(f"Turning off boiler toggle {entity_id}")
+    
+    # Check current state first
+    state_data = get_entity_state(entity_id)
+    if state_data:
+        current_state = state_data.get('state', 'unknown')
+        if current_state == 'off':
+            logger.info(f"Toggle already off, no action needed")
+            return True
+        else:
+            logger.info(f"Toggle is {current_state}, turning off...")
+    
+    # Determine domain from entity_id
+    domain = entity_id.split('.')[0] if '.' in entity_id else 'switch'
+    return call_service(domain, 'turn_off', entity_id)
+
+
+def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14):
     """Poll all configured TRV entities and manage boiler based on heating demand."""
     logger.info(f"Polling {len(trv_entities)} TRV entities...")
     
@@ -154,16 +202,24 @@ def poll_trv_entities(trv_entities, boiler_thermostat_entity=None):
         else:
             logger.warning(f"Could not retrieve state for {entity_id}")
     
-    # If any TRV is heating and we have a boiler thermostat configured, boost it
-    if boiler_thermostat_entity:
+    # Manage boiler based on heating demand and configured mode
+    if boiler_entity:
         if any_trv_heating:
-            logger.info("At least one TRV is heating - triggering/extending boiler boost")
-            boost_boiler_thermostat(boiler_thermostat_entity, duration_minutes=15)
+            if boiler_mode == 'thermostat':
+                logger.info(f"At least one TRV is heating - setting manual temperature to {manual_on_temperature}°C")
+                set_manual_temperature_thermostat(boiler_entity, manual_on_temperature)
+            else:  # toggle mode
+                logger.info("At least one TRV is heating - turning on boiler toggle")
+                turn_on_boiler_toggle(boiler_entity)
         else:
-            logger.info("No TRVs currently heating - cancelling any active boost")
-            cancel_boost_boiler_thermostat(boiler_thermostat_entity)
+            if boiler_mode == 'thermostat':
+                logger.info(f"No TRVs currently heating - setting manual temperature to {manual_off_temperature}°C")
+                set_manual_off_temperature_thermostat(boiler_entity, manual_off_temperature)
+            else:  # toggle mode
+                logger.info("No TRVs currently heating - turning off boiler toggle")
+                turn_off_boiler_toggle(boiler_entity)
     elif any_trv_heating:
-        logger.warning("TRVs are heating but no boiler thermostat entity configured")
+        logger.warning("TRVs are heating but no boiler entity configured")
     
     return any_trv_heating
 
@@ -181,23 +237,30 @@ def main():
         logger.debug("Debug logging enabled")
     
     trv_entities = config.get('trv_entities', [])
-    boiler_thermostat_entity = config.get('boiler_thermostat_entity', '')
+    boiler_entity = config.get('boiler_entity', config.get('boiler_thermostat_entity', ''))  # Backwards compatibility
+    boiler_mode = config.get('boiler_mode', 'thermostat')
+    manual_on_temperature = config.get('manual_on_temperature', 21)
+    manual_off_temperature = config.get('manual_off_temperature', 14)
     polling_interval = config.get('polling_interval', 300)
     
     logger.info(f"Configured with {len(trv_entities)} TRV entities")
-    logger.info(f"Boiler thermostat entity: {boiler_thermostat_entity or 'Not configured'}")
+    logger.info(f"Boiler entity: {boiler_entity or 'Not configured'}")
+    logger.info(f"Boiler mode: {boiler_mode}")
+    if boiler_mode == 'thermostat':
+        logger.info(f"Manual ON temperature: {manual_on_temperature}°C")
+        logger.info(f"Manual OFF temperature: {manual_off_temperature}°C")
     logger.info(f"Polling interval: {polling_interval} seconds")
     
     if not trv_entities:
         logger.warning("No TRV entities configured!")
     
-    if not boiler_thermostat_entity:
-        logger.warning("No boiler thermostat entity configured - boiler control disabled")
+    if not boiler_entity:
+        logger.warning("No boiler entity configured - boiler control disabled")
     
     try:
         # Main loop
         while True:
-            poll_trv_entities(trv_entities, boiler_thermostat_entity)
+            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature)
             logger.debug(f"Sleeping for {polling_interval} seconds...")
             time.sleep(polling_interval)
             

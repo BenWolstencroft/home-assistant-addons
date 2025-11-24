@@ -1,5 +1,5 @@
 name: Active Heating Manager
-version: 0.3.0
+version: 0.4.0
 slug: active_heating_manager
 description: Smart heating management for Home Assistant
 url: https://github.com/BenWolstencroft/home-assistant-addons
@@ -21,10 +21,16 @@ apparmor: false
 options:
   debug_logging: false
   trv_entities: []
-  boiler_thermostat_entity: ""
+  boiler_entity: ""
+  boiler_mode: "thermostat"
+  manual_on_temperature: 21
+  manual_off_temperature: 14
   polling_interval: 300
 schema:
   debug_logging: bool
   trv_entities: [str?]
-  boiler_thermostat_entity: str?
+  boiler_entity: str?
+  boiler_mode: list(thermostat|toggle)
+  manual_on_temperature: int(15,35)
+  manual_off_temperature: int(5,20)
   polling_interval: int(10,3600)
