@@ -10,8 +10,10 @@ The Active Heating Manager is a Home Assistant add-on that automatically manages
 
 - **Automatic Demand Detection**: Monitors TRV `hvac_action` states to detect when radiators need heating
 - **Smart Boiler Control**: Two control modes for different boiler setups
+- **MQTT Integration**: Entities have unique IDs and can be configured through the UI
+- **Device Grouping**: All sensors appear under a single "Active Heating Manager" device
 - **Flexible Configuration**: Customize temperatures and polling intervals
-- **Real-time Monitoring**: Continuous polling of TRV states with configurable intervals
+- **Continuous Monitoring**: Polling of TRV states with configurable intervals
 
 ## Configuration Options
 
@@ -54,6 +56,37 @@ The Active Heating Manager is a Home Assistant add-on that automatically manages
 - **Default**: `300` (5 minutes)
 - **Description**: How often (in seconds) to check TRV states. Lower values = more responsive but more resource intensive. Recommended: 60-300 seconds.
 
+### `mqtt_host` (optional)
+- **Type**: string
+- **Default**: `core-mosquitto`
+- **Description**: MQTT broker hostname. Used for proper entity registration with unique IDs. Default works with Home Assistant's Mosquitto add-on.
+
+### `mqtt_port` (optional)
+- **Type**: port
+- **Default**: `1883`
+- **Description**: MQTT broker port. Default is standard MQTT port.
+
+### `mqtt_user` (optional)
+- **Type**: string
+- **Default**: `""`
+- **Description**: MQTT username if authentication is required. Leave blank for anonymous connection.
+
+### `mqtt_password` (optional)
+- **Type**: password
+- **Default**: `""`
+- **Description**: MQTT password if authentication is required. Leave blank for anonymous connection.
+
+## Sensor Entities
+
+The add-on creates the following sensor entities via MQTT discovery, all grouped under an "Active Heating Manager" device:
+
+- **`sensor.active_heating_manager_status`**: Current status (heating/idle) - configurable via UI
+- **`sensor.active_heating_manager_trvs_heating`**: Count of TRVs currently heating - configurable via UI
+- **`sensor.active_heating_manager_avg_valve_position`**: Average valve position percentage - configurable via UI
+- **`sensor.active_heating_manager_target_temp`**: Current boiler target temperature (thermostat mode only) - configurable via UI
+
+All entities have unique IDs and can be customized (name, icon, area, etc.) through **Settings → Devices & Services → MQTT → Active Heating Manager**.
+
 ## How It Works
 
 This add-on acts as a demand-based boiler controller. Your TRVs control individual room schedules and temperatures independently. The add-on simply aggregates their heating demand and manages the boiler accordingly.
@@ -74,7 +107,7 @@ This add-on acts as a demand-based boiler controller. Your TRVs control individu
 
 ## Example Configurations
 
-### Example 1: Thermostat Mode (Recommended)
+### Example 1: Thermostat Mode with MQTT (Recommended)
 ```yaml
 debug_logging: false
 trv_entities:
@@ -86,6 +119,10 @@ boiler_mode: thermostat
 manual_on_temperature: 21
 manual_off_temperature: 14
 polling_interval: 120
+mqtt_host: core-mosquitto
+mqtt_port: 1883
+mqtt_user: ""
+mqtt_password: ""
 ```
 
 ### Example 2: Toggle Mode (Simple Switch)
@@ -97,16 +134,23 @@ trv_entities:
 boiler_entity: switch.boiler_relay
 boiler_mode: toggle
 polling_interval: 60
+mqtt_host: core-mosquitto
+mqtt_port: 1883
 ```
 
 ## Getting Started
 
-1. Install the add-on from the add-on store
-2. Configure your TRV entities in the Configuration tab
-3. Configure your boiler entity and select the appropriate mode
-4. Adjust temperatures and polling interval if needed
-5. Start the add-on
-6. Check the logs to ensure TRVs are being detected correctly
+1. **Install MQTT broker** (if not already installed):
+   - Install the Mosquitto broker add-on from the add-on store
+   - Start the Mosquitto broker
+2. Install the Active Heating Manager add-on from the add-on store
+3. Configure your TRV entities in the Configuration tab
+4. Configure your boiler entity and select the appropriate mode
+5. Configure MQTT settings (default values work with Mosquitto add-on)
+6. Adjust temperatures and polling interval if needed
+7. Start the add-on
+8. Check the logs to ensure TRVs are being detected correctly and MQTT is connected
+9. Find your sensors under **Settings → Devices & Services → MQTT → Active Heating Manager**
 
 ## Troubleshooting
 
@@ -125,6 +169,13 @@ polling_interval: 60
 ### Too responsive or not responsive enough
 - Adjust `polling_interval`: lower = more responsive, higher = less frequent checks
 - Recommended range: 60-300 seconds
+
+### MQTT connection issues
+- Ensure Mosquitto broker add-on is installed and running
+- Check MQTT credentials if authentication is enabled
+- Verify `mqtt_host` and `mqtt_port` settings
+- Look for "Connected to MQTT broker" message in logs
+- Without MQTT, entities will still work but won't have unique IDs for UI configuration
 
 ## Support
 

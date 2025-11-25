@@ -1,6 +1,6 @@
 {
   "name": "Active Heating Manager",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "slug": "active_heating_manager",
   "description": "Smart heating management for Home Assistant",
   "url": "https://github.com/BenWolstencroft/home-assistant-addons",

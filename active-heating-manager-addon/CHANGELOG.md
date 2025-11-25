@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.0] - 2025-11-25
+
+### Added
+- MQTT integration for proper entity registration with unique IDs
+- All sensor entities now configurable through Home Assistant UI
+- Device grouping - all sensors appear under "Active Heating Manager" device
+- MQTT configuration options (host, port, user, password)
+- Automatic MQTT discovery on startup
+- Fallback to REST API if MQTT unavailable
+
+### Changed
+- Sensors now created via MQTT discovery instead of REST API only
+- Entities can be customized (name, icon, area) through Settings → Devices & Services
+- Default MQTT settings work with Mosquitto add-on out-of-the-box
+
 ## [0.7.2] - 2025-11-24
 
 ### Fixed

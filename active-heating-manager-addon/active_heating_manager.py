@@ -8,6 +8,7 @@ import time
 import json
 import logging
 import requests
+import paho.mqtt.client as mqtt
 
 # Configure logging
 logging.basicConfig(
@@ -20,6 +21,10 @@ logger = logging.getLogger(__name__)
 # Home Assistant supervisor token for API access
 SUPERVISOR_TOKEN = os.getenv('SUPERVISOR_TOKEN', '')
 HA_API_URL = 'http://supervisor/core/api'
+
+# Global MQTT client
+mqtt_client = None
+mqtt_connected = False
 
 
 def load_config():
@@ -81,8 +86,115 @@ def call_service(domain, service, entity_id, service_data=None):
         return False
 
 
+def on_mqtt_connect(client, userdata, flags, rc):
+    """MQTT connection callback."""
+    global mqtt_connected
+    if rc == 0:
+        logger.info("Connected to MQTT broker")
+        mqtt_connected = True
+    else:
+        logger.error(f"Failed to connect to MQTT broker, return code {rc}")
+        mqtt_connected = False
+
+
+def on_mqtt_disconnect(client, userdata, rc):
+    """MQTT disconnection callback."""
+    global mqtt_connected
+    mqtt_connected = False
+    if rc != 0:
+        logger.warning(f"Unexpected MQTT disconnection (rc={rc}), will auto-reconnect")
+
+
+def setup_mqtt(mqtt_host, mqtt_port, mqtt_user='', mqtt_password=''):
+    """Setup MQTT client connection."""
+    global mqtt_client
+    
+    try:
+        mqtt_client = mqtt.Client(client_id="active_heating_manager")
+        mqtt_client.on_connect = on_mqtt_connect
+        mqtt_client.on_disconnect = on_mqtt_disconnect
+        
+        if mqtt_user and mqtt_password:
+            mqtt_client.username_pw_set(mqtt_user, mqtt_password)
+        
+        mqtt_client.connect(mqtt_host, mqtt_port, 60)
+        mqtt_client.loop_start()
+        
+        # Wait briefly for connection
+        time.sleep(2)
+        
+        if mqtt_connected:
+            logger.info("MQTT client setup complete")
+            return True
+        else:
+            logger.warning("MQTT client started but not connected yet")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Failed to setup MQTT client: {e}")
+        return False
+
+
+def publish_mqtt_discovery(sensor_id, sensor_name, unit=None, device_class=None, icon=None, state_class=None):
+    """Publish MQTT discovery config for a sensor."""
+    if not mqtt_connected or not mqtt_client:
+        logger.debug("MQTT not connected, skipping discovery")
+        return False
+    
+    # Device info shared across all sensors
+    device = {
+        'identifiers': ['active_heating_manager'],
+        'name': 'Active Heating Manager',
+        'manufacturer': 'Ben Wolstencroft',
+        'model': 'Active Heating Manager',
+        'sw_version': '0.8.0'
+    }
+    
+    # Discovery config
+    config = {
+        'name': sensor_name,
+        'unique_id': f'ahm_{sensor_id}',
+        'state_topic': f'homeassistant/sensor/active_heating_manager/{sensor_id}/state',
+        'device': device
+    }
+    
+    if unit:
+        config['unit_of_measurement'] = unit
+    if device_class:
+        config['device_class'] = device_class
+    if icon:
+        config['icon'] = icon
+    if state_class:
+        config['state_class'] = state_class
+    
+    # Publish discovery config
+    topic = f'homeassistant/sensor/active_heating_manager/{sensor_id}/config'
+    try:
+        result = mqtt_client.publish(topic, json.dumps(config), qos=1, retain=True)
+        result.wait_for_publish()
+        logger.debug(f"Published MQTT discovery for {sensor_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to publish MQTT discovery for {sensor_id}: {e}")
+        return False
+
+
+def publish_mqtt_state(sensor_id, state_value):
+    """Publish sensor state to MQTT."""
+    if not mqtt_connected or not mqtt_client:
+        return False
+    
+    topic = f'homeassistant/sensor/active_heating_manager/{sensor_id}/state'
+    try:
+        mqtt_client.publish(topic, str(state_value), qos=0, retain=True)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to publish state for {sensor_id}: {e}")
+        return False
+
+
 def set_entity_state(entity_id, state, attributes=None):
-    """Set entity state in Home Assistant."""
+    """Set entity state in Home Assistant (legacy REST API method)."""
     headers = {
         'Authorization': f'Bearer {SUPERVISOR_TOKEN}',
         'Content-Type': 'application/json',
@@ -268,53 +380,68 @@ def get_valve_position(trv_entity_id):
 def publish_heating_stats(heating_active, trv_count_heating, avg_valve_position, target_temp, boiler_mode):
     """Publish heating statistics as sensor entities to Home Assistant."""
     
-    # Main heating status sensor
-    set_entity_state(
-        'sensor.active_heating_manager_status',
-        'heating' if heating_active else 'idle',
-        {
-            'friendly_name': 'Active Heating Manager Status',
-            'icon': 'mdi:radiator' if heating_active else 'mdi:radiator-off',
-            'trvs_heating': trv_count_heating,
-            'mode': boiler_mode
-        }
-    )
-    
-    # TRVs heating count sensor
-    set_entity_state(
-        'sensor.active_heating_manager_trvs_heating',
-        str(trv_count_heating),
-        {
-            'friendly_name': 'TRVs Heating',
-            'icon': 'mdi:counter',
-            'unit_of_measurement': 'TRVs'
-        }
-    )
-    
-    # Average valve position sensor (if available)
-    if avg_valve_position is not None:
+    if mqtt_connected:
+        # Use MQTT discovery for proper entity registration with unique IDs
+        # Status sensor
+        publish_mqtt_state('status', 'heating' if heating_active else 'idle')
+        
+        # TRVs heating count
+        publish_mqtt_state('trvs_heating', trv_count_heating)
+        
+        # Average valve position (if available)
+        if avg_valve_position is not None:
+            publish_mqtt_state('avg_valve_position', round(avg_valve_position, 1))
+        
+        # Target temperature (thermostat mode only)
+        if boiler_mode == 'thermostat' and target_temp is not None:
+            publish_mqtt_state('target_temp', target_temp)
+    else:
+        # Fallback to REST API (entities won't have unique IDs)
+        logger.warning("MQTT not connected - entities will not have unique IDs for UI configuration")
+        
         set_entity_state(
-            'sensor.active_heating_manager_avg_valve_position',
-            str(round(avg_valve_position, 1)),
+            'sensor.active_heating_manager_status',
+            'heating' if heating_active else 'idle',
             {
-                'friendly_name': 'Average Valve Position',
-                'icon': 'mdi:valve',
-                'unit_of_measurement': '%'
+                'friendly_name': 'Active Heating Manager Status',
+                'icon': 'mdi:radiator' if heating_active else 'mdi:radiator-off',
+                'trvs_heating': trv_count_heating,
+                'mode': boiler_mode
             }
         )
-    
-    # Target boiler temperature sensor (only in thermostat mode)
-    if boiler_mode == 'thermostat' and target_temp is not None:
+        
         set_entity_state(
-            'sensor.active_heating_manager_target_temp',
-            str(target_temp),
+            'sensor.active_heating_manager_trvs_heating',
+            str(trv_count_heating),
             {
-                'friendly_name': 'Boiler Target Temperature',
-                'icon': 'mdi:thermometer',
-                'unit_of_measurement': '°C',
-                'device_class': 'temperature'
+                'friendly_name': 'TRVs Heating',
+                'icon': 'mdi:counter',
+                'unit_of_measurement': 'TRVs'
             }
         )
+        
+        if avg_valve_position is not None:
+            set_entity_state(
+                'sensor.active_heating_manager_avg_valve_position',
+                str(round(avg_valve_position, 1)),
+                {
+                    'friendly_name': 'Average Valve Position',
+                    'icon': 'mdi:valve',
+                    'unit_of_measurement': '%'
+                }
+            )
+        
+        if boiler_mode == 'thermostat' and target_temp is not None:
+            set_entity_state(
+                'sensor.active_heating_manager_target_temp',
+                str(target_temp),
+                {
+                    'friendly_name': 'Boiler Target Temperature',
+                    'icon': 'mdi:thermometer',
+                    'unit_of_measurement': '°C',
+                    'device_class': 'temperature'
+                }
+            )
 
 
 def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_temp, manual_off_temp):
@@ -506,6 +633,10 @@ def main():
     check_valve_state = config.get('check_valve_state', True)
     use_dynamic_temperature = config.get('use_dynamic_temperature', True)
     polling_interval = config.get('polling_interval', 300)
+    mqtt_host = config.get('mqtt_host', 'core-mosquitto')
+    mqtt_port = config.get('mqtt_port', 1883)
+    mqtt_user = config.get('mqtt_user', '')
+    mqtt_password = config.get('mqtt_password', '')
     
     logger.info(f"Configured with {len(trv_entities)} TRV entities")
     logger.info(f"Boiler entity: {boiler_entity or 'Not configured'}")
@@ -516,12 +647,27 @@ def main():
         logger.info(f"Use dynamic temperature: {use_dynamic_temperature}")
     logger.info(f"Check valve state: {check_valve_state}")
     logger.info(f"Polling interval: {polling_interval} seconds")
+    logger.info(f"MQTT broker: {mqtt_host}:{mqtt_port}")
     
     if not trv_entities:
         logger.warning("No TRV entities configured!")
     
     if not boiler_entity:
         logger.warning("No boiler entity configured - boiler control disabled")
+    
+    # Setup MQTT for proper entity registration
+    mqtt_setup = setup_mqtt(mqtt_host, mqtt_port, mqtt_user, mqtt_password)
+    if mqtt_setup:
+        logger.info("Publishing MQTT discovery configs...")
+        # Publish discovery configs for all sensors
+        publish_mqtt_discovery('status', 'Status', icon='mdi:radiator')
+        publish_mqtt_discovery('trvs_heating', 'TRVs Heating', unit='TRVs', icon='mdi:counter', state_class='measurement')
+        publish_mqtt_discovery('avg_valve_position', 'Average Valve Position', unit='%', icon='mdi:valve', state_class='measurement')
+        if boiler_mode == 'thermostat':
+            publish_mqtt_discovery('target_temp', 'Target Temperature', unit='°C', device_class='temperature', icon='mdi:thermometer', state_class='measurement')
+        logger.info("MQTT discovery complete - sensors will have unique IDs and appear under 'Active Heating Manager' device")
+    else:
+        logger.warning("MQTT not available - entities will not have unique IDs for UI configuration")
     
     try:
         # Main loop
@@ -532,9 +678,15 @@ def main():
             
     except KeyboardInterrupt:
         logger.info("Shutting down Active Heating Manager...")
+        if mqtt_client:
+            mqtt_client.loop_stop()
+            mqtt_client.disconnect()
         sys.exit(0)
     except Exception as e:
         logger.error(f"Fatal error: {e}", exc_info=True)
+        if mqtt_client:
+            mqtt_client.loop_stop()
+            mqtt_client.disconnect()
         sys.exit(1)
 
 

@@ -1,5 +1,5 @@
 name: Active Heating Manager
-version: 0.7.2
+version: 0.8.0
 slug: active_heating_manager
 description: Smart heating management for Home Assistant
 url: https://github.com/BenWolstencroft/home-assistant-addons
@@ -18,6 +18,8 @@ homeassistant_api: true
 hassio_api: true
 gpio: false
 apparmor: false
+services:
+  - mqtt:want
 options:
   debug_logging: false
   trv_entities: []
@@ -28,6 +30,10 @@ options:
   check_valve_state: true
   use_dynamic_temperature: true
   polling_interval: 300
+  mqtt_host: "core-mosquitto"
+  mqtt_port: 1883
+  mqtt_user: ""
+  mqtt_password: ""
 schema:
   debug_logging: bool
   trv_entities: [str?]
@@ -38,3 +44,7 @@ schema:
   check_valve_state: bool
   use_dynamic_temperature: bool
   polling_interval: int(10,3600)
+  mqtt_host: str
+  mqtt_port: port
+  mqtt_user: str?
+  mqtt_password: password?
