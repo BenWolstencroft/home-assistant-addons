@@ -346,6 +346,20 @@ def get_valve_state(trv_entity_id):
     return True
 
 
+def round_up_to_nearest_25(value):
+    """Round up a percentage value to the nearest 25% (0, 25, 50, 75, 100)."""
+    if value <= 0:
+        return 0
+    elif value <= 25:
+        return 25
+    elif value <= 50:
+        return 50
+    elif value <= 75:
+        return 75
+    else:
+        return 100
+
+
 def get_valve_position(trv_entity_id):
     """Get the valve position percentage for a TRV. Returns None if not available."""
     if '.' not in trv_entity_id:
@@ -566,8 +580,9 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
     avg_valve_position = None
     trv_count_heating = sum(1 for _ in range(len([e for e in trv_entities if any_trv_heating])))
     if valve_positions:
-        avg_valve_position = sum(valve_positions) / len(valve_positions)
-        logger.info(f"Average valve position across {len(valve_positions)} heating TRVs: {avg_valve_position:.1f}%")
+        raw_avg = sum(valve_positions) / len(valve_positions)
+        avg_valve_position = round_up_to_nearest_25(raw_avg)
+        logger.info(f"Average valve position across {len(valve_positions)} heating TRVs: {raw_avg:.1f}% (rounded up to {avg_valve_position}%)")
         trv_count_heating = len(valve_positions)  # More accurate count
     elif any_trv_heating:
         # Count TRVs that are heating even if no position sensors

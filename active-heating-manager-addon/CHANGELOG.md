@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1] - 2025-11-26
+
+### Changed
+- Average valve position now always rounds up to nearest 25% (0, 25, 50, 75, 100)
+- Prevents over-sensitive heating adjustments from minor valve position changes
+- Log messages now show both raw average and rounded value for transparency
+
 ## [0.8.0] - 2025-11-25
 
 ### Added
