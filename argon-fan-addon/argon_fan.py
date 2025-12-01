@@ -220,29 +220,104 @@ class ArgonFanController:
         # Only update if speed has changed
         if speed != self.current_speed:
             try:
-                if speed > 0:
-                    # Spin up to 100% first to prevent issues on older units
-                    # This is critical for Argon ONE hardware
-                    if self.debug:
-                        logger.debug("Spinning up fan to 100% before setting target speed")
-                    self.bus.write_byte(ADDR_FAN, 100)
-                    time.sleep(1)
+                # INVESTIGATIVE MODE: Try multiple communication methods
+                logger.info("=" * 60)
+                logger.info(f"TESTING COMMUNICATION METHODS FOR SPEED {speed}%")
+                logger.info("=" * 60)
                 
-                # Set actual speed
-                self.bus.write_byte(ADDR_FAN, speed)
-                logger.info(f"Fan speed set to {speed}%")
-                self.current_speed = speed
+                success_method = None
                 
-            except IOError as e:
-                logger.error(f"I2C communication error: {e}")
-                logger.error(f"Failed to communicate with device at 0x{ADDR_FAN:02x} on bus {self.bus_num}")
-                logger.error("Possible causes:")
-                logger.error("  - Device disconnected or powered off")
-                logger.error("  - I2C bus issue")
-                logger.error("  - Insufficient permissions")
-                # Don't exit, just skip this update
+                # Method 1: V1/Classic - write_byte (single byte)
+                logger.info("Method 1: Testing V1/Classic (write_byte)")
+                try:
+                    if speed > 0:
+                        self.bus.write_byte(ADDR_FAN, 100)
+                        time.sleep(0.5)
+                        self.bus.write_byte(ADDR_FAN, speed)
+                    else:
+                        self.bus.write_byte(ADDR_FAN, 0)
+                    logger.info("✓ Method 1 (V1/Classic write_byte) - SUCCESS!")
+                    success_method = "V1/Classic (write_byte)"
+                except IOError as e:
+                    logger.error(f"✗ Method 1 (V1/Classic write_byte) - FAILED: {e}")
+                except Exception as e:
+                    logger.error(f"✗ Method 1 (V1/Classic write_byte) - ERROR: {e}")
+                
+                # Method 2: V3 - write_byte_data with 0x80
+                logger.info("Method 2: Testing V3 (write_byte_data with 0x80)")
+                try:
+                    if speed > 0:
+                        self.bus.write_byte_data(ADDR_FAN, 0x80, 100)
+                        time.sleep(0.5)
+                        self.bus.write_byte_data(ADDR_FAN, 0x80, speed)
+                    else:
+                        self.bus.write_byte_data(ADDR_FAN, 0x80, 0)
+                    logger.info("✓ Method 2 (V3 write_byte_data 0x80) - SUCCESS!")
+                    if not success_method:
+                        success_method = "V3 (write_byte_data 0x80)"
+                except IOError as e:
+                    logger.error(f"✗ Method 2 (V3 write_byte_data 0x80) - FAILED: {e}")
+                except Exception as e:
+                    logger.error(f"✗ Method 2 (V3 write_byte_data 0x80) - ERROR: {e}")
+                
+                # Method 3: Alternative addressing - write_i2c_block_data
+                logger.info("Method 3: Testing block write (write_i2c_block_data)")
+                try:
+                    if speed > 0:
+                        self.bus.write_i2c_block_data(ADDR_FAN, 0, [100])
+                        time.sleep(0.5)
+                        self.bus.write_i2c_block_data(ADDR_FAN, 0, [speed])
+                    else:
+                        self.bus.write_i2c_block_data(ADDR_FAN, 0, [0])
+                    logger.info("✓ Method 3 (write_i2c_block_data) - SUCCESS!")
+                    if not success_method:
+                        success_method = "Block write (write_i2c_block_data)"
+                except IOError as e:
+                    logger.error(f"✗ Method 3 (write_i2c_block_data) - FAILED: {e}")
+                except Exception as e:
+                    logger.error(f"✗ Method 3 (write_i2c_block_data) - ERROR: {e}")
+                
+                # Method 4: Direct write_byte_data with register 0x00
+                logger.info("Method 4: Testing write_byte_data with register 0x00")
+                try:
+                    if speed > 0:
+                        self.bus.write_byte_data(ADDR_FAN, 0x00, 100)
+                        time.sleep(0.5)
+                        self.bus.write_byte_data(ADDR_FAN, 0x00, speed)
+                    else:
+                        self.bus.write_byte_data(ADDR_FAN, 0x00, 0)
+                    logger.info("✓ Method 4 (write_byte_data 0x00) - SUCCESS!")
+                    if not success_method:
+                        success_method = "write_byte_data with 0x00"
+                except IOError as e:
+                    logger.error(f"✗ Method 4 (write_byte_data 0x00) - FAILED: {e}")
+                except Exception as e:
+                    logger.error(f"✗ Method 4 (write_byte_data 0x00) - ERROR: {e}")
+                
+                # Method 5: Try without spin-up (direct write)
+                logger.info("Method 5: Testing direct write without spin-up")
+                try:
+                    self.bus.write_byte(ADDR_FAN, speed)
+                    logger.info("✓ Method 5 (direct write_byte no spin-up) - SUCCESS!")
+                    if not success_method:
+                        success_method = "Direct write (no spin-up)"
+                except IOError as e:
+                    logger.error(f"✗ Method 5 (direct write_byte no spin-up) - FAILED: {e}")
+                except Exception as e:
+                    logger.error(f"✗ Method 5 (direct write_byte no spin-up) - ERROR: {e}")
+                
+                logger.info("=" * 60)
+                if success_method:
+                    logger.info(f"SUCCESSFUL METHOD: {success_method}")
+                    logger.info(f"Fan speed set to {speed}% using {success_method}")
+                    self.current_speed = speed
+                else:
+                    logger.error("ALL METHODS FAILED - No communication method worked!")
+                    logger.error(f"Device at 0x{ADDR_FAN:02x} on bus {self.bus_num} is not responding")
+                logger.info("=" * 60)
+                
             except Exception as e:
-                logger.error(f"Unexpected error setting fan speed: {e}")
+                logger.error(f"Unexpected error in investigative mode: {e}")
         else:
             if self.debug:
                 logger.debug(f"Fan speed unchanged at {speed}%")
@@ -256,11 +331,16 @@ class ArgonFanController:
         """Signal shutdown to MCU - sends 0xFF to trigger shutdown"""
         logger.info("Sending shutdown signal to MCU")
         try:
-            # First turn off the fan
-            self.bus.write_byte(ADDR_FAN, 0)
-            time.sleep(0.1)
-            # Then send shutdown signal
-            self.bus.write_byte(ADDR_FAN, 0xFF)
+            # Try V3 method first
+            try:
+                self.bus.write_byte_data(ADDR_FAN, 0x80, 0)
+                time.sleep(0.1)
+                self.bus.write_byte(ADDR_FAN, 0xFF)
+            except IOError:
+                # Fall back to V1 method
+                self.bus.write_byte(ADDR_FAN, 0)
+                time.sleep(0.1)
+                self.bus.write_byte(ADDR_FAN, 0xFF)
             logger.info("Shutdown signal sent successfully")
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
@@ -319,23 +399,23 @@ def main():
             return
         
         elif cmd == "TEST":
-            logger.info("Running fan test sequence")
+            logger.info("Running fan test sequence - INVESTIGATIVE MODE")
+            logger.info("This will test all communication methods at each speed")
             controller = ArgonFanController()
             
-            logger.info("Testing fan at 30%...")
-            controller.set_fan_speed(30)
-            time.sleep(5)
+            logger.info("\n\n>>> Testing at 50% speed...")
+            controller.set_fan_speed(50)
+            time.sleep(3)
             
-            logger.info("Testing fan at 60%...")
-            controller.set_fan_speed(60)
-            time.sleep(5)
-            
-            logger.info("Testing fan at 100%...")
+            logger.info("\n\n>>> Testing at 100% speed...")
             controller.set_fan_speed(100)
-            time.sleep(5)
+            time.sleep(3)
             
-            logger.info("Turning fan off...")
-            controller.fan_off()
+            logger.info("\n\n>>> Turning fan off...")
+            controller.set_fan_speed(0)
+            time.sleep(2)
+            
+            logger.info("\n\nTest complete! Check logs above to see which method(s) succeeded.")
             return
     
     # Default: run the service

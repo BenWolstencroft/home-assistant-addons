@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.7] - 2025-12-01
+
+### Added
+- **Investigative Mode**: Tests 5 different I2C communication methods to identify Argon ONE V5 protocol
+  - Method 1: V1/Classic write_byte (single byte)
+  - Method 2: V3 write_byte_data with 0x80 register
+  - Method 3: Block write (write_i2c_block_data)
+  - Method 4: write_byte_data with 0x00 register
+  - Method 5: Direct write without spin-up sequence
+- Detailed logging showing which method succeeds/fails for V5 hardware identification
+- Enhanced TEST mode to run full diagnostic sequence
+
+### Changed
+- set_fan_speed now tests all communication methods and reports results
+- Each speed change attempt shows detailed success/failure for each protocol
+- Helps identify the correct protocol for Argon ONE V5 hardware
+
+### Note
+- This is a diagnostic version to identify V5 communication protocol
+- Will be replaced with optimized single-method implementation once protocol is confirmed
+
 ## [1.0.6] - 2025-12-01
 
 ### Fixed - Major Overhaul
