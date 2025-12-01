@@ -97,6 +97,7 @@ class ArgonFanController:
         """Initialize I2C bus communication"""
         logger.info("Scanning I2C buses for Argon ONE device...")
         detected_bus = None
+        detected_addresses = []
         
         # Scan common I2C buses to find the Argon ONE device
         for bus_num in [1, 0, 13, 14, 3, 10, 11, 22]:
@@ -112,15 +113,32 @@ class ArgonFanController:
                     text=True,
                     timeout=5
                 )
-                if result.returncode == 0 and ' 1a ' in result.stdout:
-                    logger.info(f"✓ Found Argon ONE device on I2C bus {bus_num} at address 0x1a")
-                    detected_bus = bus_num
-                    break
+                if result.returncode == 0:
+                    # Log the full output for diagnostics
+                    logger.debug(f"i2cdetect output for bus {bus_num}:")
+                    for line in result.stdout.split('\n'):
+                        if line.strip():
+                            logger.debug(f"  {line}")
+                    
+                    # Look for device at 0x1a
+                    if ' 1a ' in result.stdout:
+                        logger.info(f"✓ Found device on I2C bus {bus_num} at address 0x1a")
+                        detected_bus = bus_num
+                        detected_addresses.append('0x1a')
+                        
+                    # Also check for other common Argon addresses
+                    for addr_hex, addr_desc in [('1b', '0x1b'), ('01', '0x01'), ('3c', '0x3c (OLED)')]:
+                        if f' {addr_hex} ' in result.stdout:
+                            logger.info(f"  Also found device at address {addr_desc} on bus {bus_num}")
+                            detected_addresses.append(addr_desc)
+                    
+                    if detected_bus:
+                        break
             except Exception as e:
                 logger.debug(f"Error scanning bus {bus_num}: {e}")
         
         if detected_bus is None:
-            logger.error("Failed to detect Argon ONE device on any I2C bus")
+            logger.error("Failed to detect Argon ONE device at 0x1a on any I2C bus")
             logger.error("Possible issues:")
             logger.error("  1. I2C is not enabled on your Raspberry Pi")
             logger.error("  2. Argon ONE case is not properly connected")
@@ -139,6 +157,30 @@ class ArgonFanController:
             self.bus = SMBus(detected_bus)
             self.bus_num = detected_bus
             logger.info(f"✓ I2C bus {detected_bus} initialized successfully using {SMBUS_MODULE}")
+            logger.info(f"✓ Detected addresses on bus: {', '.join(detected_addresses)}")
+            
+            # DIAGNOSTIC: Try to verify we can access the device
+            logger.info("DIAGNOSTIC: Verifying device access...")
+            try:
+                # Try to read a byte - this might fail but tells us about permissions
+                logger.debug("Attempting read_byte...")
+                self.bus.read_byte(ADDR_FAN)
+                logger.info("✓ Read access works (device responded to read)")
+            except IOError as e:
+                logger.warning(f"⚠ Read failed: {e} (this is sometimes normal for write-only devices)")
+            except Exception as e:
+                logger.warning(f"⚠ Read test error: {e}")
+            
+            # Check file permissions on the i2c device
+            import stat
+            i2c_path = f'/dev/i2c-{detected_bus}'
+            try:
+                st = os.stat(i2c_path)
+                mode = stat.filemode(st.st_mode)
+                logger.info(f"Device permissions: {i2c_path} = {mode} (uid={st.st_uid}, gid={st.st_gid})")
+            except Exception as e:
+                logger.warning(f"Could not check device permissions: {e}")
+                
         except Exception as e:
             logger.error(f"Failed to open I2C bus {detected_bus}: {e}")
             sys.exit(1)
@@ -305,6 +347,35 @@ class ArgonFanController:
                     logger.error(f"✗ Method 5 (direct write_byte no spin-up) - FAILED: {e}")
                 except Exception as e:
                     logger.error(f"✗ Method 5 (direct write_byte no spin-up) - ERROR: {e}")
+                
+                # Method 6: Try using ioctl directly (bypass SMBus abstraction)
+                logger.info("Method 6: Testing raw ioctl I2C commands")
+                try:
+                    import fcntl
+                    import struct
+                    
+                    I2C_SLAVE = 0x0703
+                    i2c_path = f'/dev/i2c-{self.bus_num}'
+                    
+                    with open(i2c_path, 'rb+', buffering=0) as f:
+                        # Set slave address
+                        fcntl.ioctl(f, I2C_SLAVE, ADDR_FAN)
+                        
+                        if speed > 0:
+                            # Try spin-up
+                            f.write(bytes([100]))
+                            time.sleep(0.5)
+                            f.write(bytes([speed]))
+                        else:
+                            f.write(bytes([0]))
+                        
+                    logger.info("✓ Method 6 (raw ioctl) - SUCCESS!")
+                    if not success_method:
+                        success_method = "Raw ioctl"
+                except IOError as e:
+                    logger.error(f"✗ Method 6 (raw ioctl) - FAILED: {e}")
+                except Exception as e:
+                    logger.error(f"✗ Method 6 (raw ioctl) - ERROR: {e}")
                 
                 logger.info("=" * 60)
                 if success_method:

@@ -1,0 +1,67 @@
+#include <tunables/global>
+
+profile argon_fan flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  
+  capability,
+  file,
+
+  capability setgid,
+  capability setuid,
+
+  # S6-Overlay
+  /bin/** ix,
+  /usr/bin/** ix,
+  /usr/lib/bashio/** ix,
+  /etc/s6/** rix,
+  /run/s6/** rix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /init rix,
+  /var/run/** mrwkl,
+  /var/run/ mrwkl,
+  
+  # I2C device access - CRITICAL for Argon ONE fan control
+  /dev/i2c-0 rwk,
+  /dev/i2c-1 rwk,
+  /dev/i2c-2 rwk,
+  /dev/i2c-3 rwk,
+  /dev/i2c-4 rwk,
+  /dev/i2c-5 rwk,
+  /dev/i2c-6 rwk,
+  /dev/i2c-7 rwk,
+  /dev/i2c-8 rwk,
+  /dev/i2c-9 rwk,
+  /dev/i2c-10 rwk,
+  /dev/i2c-11 rwk,
+  /dev/i2c-12 rwk,
+  /dev/i2c-13 rwk,
+  /dev/i2c-14 rwk,
+  /dev/i2c-15 rwk,
+  /dev/i2c-16 rwk,
+  /dev/i2c-17 rwk,
+  /dev/i2c-18 rwk,
+  /dev/i2c-19 rwk,
+  /dev/i2c-20 rwk,
+  /dev/i2c-21 rwk,
+  /dev/i2c-22 rwk,
+  /dev/i2c-23 rwk,
+  /dev/i2c-24 rwk,
+  /dev/i2c-25 rwk,
+  /dev/i2c-26 rwk,
+
+  # Data access
+  /data/** rw,
+  
+  # Temperature reading
+  /sys/class/thermal/** r,
+  /sys/devices/virtual/thermal/** r,
+
+  # suppress ptrace denials when using 'docker ps' or using 'ps' inside a container
+  ptrace (trace,read) peer=docker-default,
+ 
+  # docker daemon confinement requires explict allow rule for signal
+  signal (receive) set=(kill,term) peer=/usr/bin/docker,
+
+}

@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.9] - 2025-12-01
+
+### Added
+- **AppArmor profile** (`apparmor.txt`) with explicit I2C device permissions matching OLED addon
+- `hassio_role: default` in config.yaml (matching working OLED addon structure)
+
+### Changed
+- Enabled AppArmor (`apparmor: true`) to use proper permission profile
+- I2C devices now have explicit `rwk` (read/write/lock) permissions in AppArmor
+- Added thermal sensor read permissions for temperature monitoring
+
+### Purpose
+- Match configuration with working argon-oled-addon
+- Ensure proper I2C device permissions via AppArmor
+- Rule out permission issues preventing I2C communication
+
+## [1.0.8] - 2025-12-01
+
+### Added
+- **Enhanced Diagnostics**: Method 6 using raw ioctl to bypass SMBus abstraction
+- Device permission checking and reporting
+- Full i2cdetect output logging for all buses
+- Detection of multiple I2C addresses on same bus
+- Read access verification during initialization
+- File permission details for /dev/i2c-* devices
+
+### Changed
+- More detailed logging during I2C bus detection
+- Reports all detected I2C addresses, not just 0x1a
+- Better error context when all communication methods fail
+
+### Purpose
+- Diagnose why device at 0x1a is detected but not responding to writes
+- Rule out permission issues, wrong addressing, or SMBus driver problems
+
 ## [1.0.7] - 2025-12-01
 
 ### Added
