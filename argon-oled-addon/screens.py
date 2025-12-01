@@ -379,26 +379,23 @@ class ScreenRenderer:
             
             self.draw_header(draw, "Fan Speed", "🌀")
             
-            # Display RPM if available
+            # Display RPM if available (RPM value and label on same line)
             if fan_data['rpm'] is not None:
-                rpm_str = str(fan_data['rpm'])
-                # Draw large RPM value
-                draw.text((64, 20), rpm_str, font=self.font_large, fill=255, anchor="mm")
-                draw.text((64, 35), "RPM", font=self.font_small, fill=255, anchor="mm")
+                rpm_str = f"{fan_data['rpm']} RPM"
+                draw.text((64, 25), rpm_str, font=self.font_large, fill=255, anchor="mm")
             else:
                 # No tachometer signal
                 draw.text((64, 25), "No Tach Signal", font=self.font_small, fill=255, anchor="mm")
             
-            # PWM duty cycle bar at bottom
-            draw.text((5, 44), "PWM:", font=self.font_small, fill=255)
-            self.draw_progress_bar(draw, 5, 52, 90, 8, fan_data['pwm_percent'], 
+            # PWM duty cycle bar at bottom (no label, larger bar)
+            self.draw_progress_bar(draw, 5, 50, 90, 10, fan_data['pwm_percent'], 
                                  font=self.font_small, unit="%", style="solid")
             
             # Status indicator (filled box = on, empty = off)
             if fan_data['pwm_percent'] > 0:
-                draw.rectangle((118, 44, 125, 60), fill=255)
+                draw.rectangle((118, 48, 125, 62), fill=255)
             else:
-                draw.rectangle((118, 44, 125, 60), outline=255, fill=0)
+                draw.rectangle((118, 48, 125, 62), outline=255, fill=0)
     
     def draw_ha_status(self, supervisor_api):
         """Draw Home Assistant system status"""

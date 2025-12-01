@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.1] - 2025-12-01
+
+### Improved
+- **Fan Screen Layout** - RPM value and label now on same line for compact display
+- Removed "PWM:" label for cleaner interface
+- Increased progress bar height from 8px to 10px for better visibility
+- Adjusted status indicator position to align with taller progress bar
+
+### Documentation
+- Added comprehensive section on enabling Raspberry Pi 5 native fan
+- Included `/mnt/boot/config.txt` configuration instructions
+- Documented 4-level fan curve with temperature thresholds
+- Added explanation of PWM speeds and hysteresis values
+
 ## [1.16.0] - 2025-12-01
 
 ### Added

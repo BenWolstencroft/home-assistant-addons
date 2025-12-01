@@ -54,6 +54,46 @@ The easiest way to enable I2C on Home Assistant OS is to install the **[I2C Conf
 
 The I2C interface should then be available for this add-on to use.
 
+## Enabling the Raspberry Pi 5 Fan (Required for Fan Screen)
+
+**Important:** For the Fan screen to work on Raspberry Pi 5, you must enable the native fan controller in Home Assistant OS.
+
+Edit `/mnt/boot/config.txt` and add the following configuration in the `[all]` section:
+
+```ini
+[all]
+
+# Fan configuration (Raspberry Pi 5)
+dtparam=fan_temp0=35000
+dtparam=fan_temp0_hyst=5000
+dtparam=fan_temp0_speed=75
+
+dtparam=fan_temp1=50000
+dtparam=fan_temp1_hyst=5000
+dtparam=fan_temp1_speed=125
+
+dtparam=fan_temp2=60000
+dtparam=fan_temp2_hyst=5000
+dtparam=fan_temp2_speed=175
+
+dtparam=fan_temp3=65000
+dtparam=fan_temp3_hyst=5000
+dtparam=fan_temp3_speed=250
+```
+
+**Configuration explanation:**
+- `fan_temp0-3`: Temperature thresholds in millidegrees Celsius (35000 = 35°C)
+- `fan_temp0-3_hyst`: Hysteresis (temperature drop before changing speed)
+- `fan_temp0-3_speed`: PWM speed (0-255, where 255 = 100% speed)
+
+This creates a 4-level fan curve:
+- **35°C**: 30% speed (75/255)
+- **50°C**: 49% speed (125/255)
+- **60°C**: 69% speed (175/255)
+- **65°C**: 98% speed (250/255)
+
+After editing, reboot your system for the changes to take effect. The Fan screen will then display RPM and PWM percentage.
+
 ## Configuration
 
 Example configuration:
