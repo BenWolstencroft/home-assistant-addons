@@ -390,12 +390,6 @@ class ScreenRenderer:
             # PWM duty cycle bar at bottom (no label, larger bar)
             self.draw_progress_bar(draw, 5, 50, 90, 10, fan_data['pwm_percent'], 
                                  font=self.font_small, unit="%", style="solid")
-            
-            # Status indicator (filled box = on, empty = off)
-            if fan_data['pwm_percent'] > 0:
-                draw.rectangle((118, 48, 125, 62), fill=255)
-            else:
-                draw.rectangle((118, 48, 125, 62), outline=255, fill=0)
     
     def draw_ha_status(self, supervisor_api):
         """Draw Home Assistant system status"""

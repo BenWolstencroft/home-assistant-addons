@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.2] - 2025-12-01
+
+### Changed
+- Removed status box indicator from Fan Screen for cleaner, simpler display
+- Fan screen now shows only RPM value and PWM progress bar
+
 ## [1.16.1] - 2025-12-01
 
 ### Improved
