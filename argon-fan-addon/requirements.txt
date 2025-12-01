@@ -1,2 +1,0 @@
-# Python dependencies for Argon Fan Control Addon
-smbus2>=0.4.0

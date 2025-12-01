@@ -1,9 +1,0 @@
-build_from:
-  armhf: ghcr.io/home-assistant/armhf-base:latest
-  armv7: ghcr.io/home-assistant/armv7-base:latest
-  aarch64: ghcr.io/home-assistant/aarch64-base:latest
-labels:
-  org.opencontainers.image.title: "Argon ONE Active Cooling"
-  org.opencontainers.image.description: "Temperature-based fan control for Argon ONE v5 case"
-  org.opencontainers.image.source: "https://github.com/BenWolstencroft/home-assistant-addons"
-  org.opencontainers.image.licenses: "MIT"
