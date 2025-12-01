@@ -85,3 +85,57 @@ class SystemInfo:
             return used, total, percent
         except:
             return 0, 0, 0
+    
+    def get_fan_speed(self):
+        """Get fan speed from Raspberry Pi 5 native fan connector
+        Returns: dict with 'rpm' (int or None), 'pwm_percent' (int 0-100), 'status' (str)
+        """
+        import glob
+        
+        result = {
+            'rpm': None,
+            'pwm_percent': 0,
+            'status': 'Not Found'
+        }
+        
+        try:
+            # Find hwmon devices
+            hwmon_paths = glob.glob('/sys/class/hwmon/hwmon*/name')
+            
+            for name_file in hwmon_paths:
+                try:
+                    with open(name_file, 'r') as f:
+                        device_name = f.read().strip()
+                    
+                    # Look for fan/cooling device (rp1_fan, pwm-fan, cooling_fan, etc.)
+                    if any(keyword in device_name.lower() for keyword in ['fan', 'cooling', 'rp1']):
+                        hwmon_dir = os.path.dirname(name_file)
+                        
+                        # Try to read RPM (requires tachometer connection)
+                        fan_input = os.path.join(hwmon_dir, 'fan1_input')
+                        if os.path.exists(fan_input):
+                            with open(fan_input, 'r') as f:
+                                result['rpm'] = int(f.read().strip())
+                        
+                        # Read PWM duty cycle (0-255 scale)
+                        pwm_file = os.path.join(hwmon_dir, 'pwm1')
+                        if os.path.exists(pwm_file):
+                            with open(pwm_file, 'r') as f:
+                                pwm_value = int(f.read().strip())
+                                result['pwm_percent'] = int((pwm_value / 255) * 100)
+                                
+                                # Determine status
+                                if result['pwm_percent'] == 0:
+                                    result['status'] = 'Off'
+                                elif result['rpm'] is not None:
+                                    result['status'] = f"{result['rpm']} RPM"
+                                else:
+                                    result['status'] = f"{result['pwm_percent']}%"
+                                
+                                return result
+                except:
+                    continue
+        except:
+            pass
+        
+        return result

@@ -316,6 +316,8 @@ class ArgonOLED:
             self.renderer.draw_storage(self.system_info)
         elif screen_name == "temp":
             self.renderer.draw_temp(self.system_info)
+        elif screen_name == "fan":
+            self.renderer.draw_fan(self.system_info)
         elif screen_name == "ip":
             self.renderer.draw_ip(self.supervisor_api)
         elif screen_name == "qr":
@@ -531,7 +533,7 @@ class ArgonOLED:
 def main():
     """Main entry point"""
     # Get configuration from environment variables
-    screen_list_str = os.environ.get('SCREEN_LIST', 'logo clock cpu storage ram temp ip')
+    screen_list_str = os.environ.get('SCREEN_LIST', 'logo clock cpu storage ram temp fan ip')
     screen_list = screen_list_str.split()
     
     switch_duration = int(os.environ.get('SWITCH_DURATION', '30'))

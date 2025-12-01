@@ -372,6 +372,34 @@ class ScreenRenderer:
                 draw.text((5, 25), "by Ben Wolstencroft", font=self.font_small, fill=255)
                 draw.text((5, 40), f"v{version}", font=self.font_small, fill=255)
     
+    def draw_fan(self, system_info):
+        """Draw fan speed screen showing RPM and PWM duty cycle"""
+        with canvas(self.device) as draw:
+            fan_data = system_info.get_fan_speed()
+            
+            self.draw_header(draw, "Fan Speed", "🌀")
+            
+            # Display RPM if available
+            if fan_data['rpm'] is not None:
+                rpm_str = str(fan_data['rpm'])
+                # Draw large RPM value
+                draw.text((64, 20), rpm_str, font=self.font_large, fill=255, anchor="mm")
+                draw.text((64, 35), "RPM", font=self.font_small, fill=255, anchor="mm")
+            else:
+                # No tachometer signal
+                draw.text((64, 25), "No Tach Signal", font=self.font_small, fill=255, anchor="mm")
+            
+            # PWM duty cycle bar at bottom
+            draw.text((5, 44), "PWM:", font=self.font_small, fill=255)
+            self.draw_progress_bar(draw, 5, 52, 90, 8, fan_data['pwm_percent'], 
+                                 font=self.font_small, unit="%", style="solid")
+            
+            # Status indicator (filled box = on, empty = off)
+            if fan_data['pwm_percent'] > 0:
+                draw.rectangle((118, 44, 125, 60), fill=255)
+            else:
+                draw.rectangle((118, 44, 125, 60), outline=255, fill=0)
+    
     def draw_ha_status(self, supervisor_api):
         """Draw Home Assistant system status"""
         with canvas(self.device) as draw:

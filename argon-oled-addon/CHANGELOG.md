@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.16.0] - 2025-12-01
+
+### Added
+- **Fan Screen** - New screen displaying Raspberry Pi 5 native fan information
+  - Shows fan RPM when tachometer is connected
+  - Displays PWM duty cycle percentage (0-100%)
+  - Visual status indicator (filled box when running)
+  - Reads data from kernel hwmon interface (`/sys/class/hwmon`)
+- `get_fan_speed()` method in SystemInfo class for reading fan metrics
+- Fan screen included in default screen rotation
+
+### Changed
+- Default screen list updated to include `fan` screen
+- Screen list now: `"logo clock cpu storage ram temp fan ip"`
+
+### Technical
+- Fan data read from `/sys/class/hwmon/hwmon*/fan1_input` (RPM)
+- PWM duty cycle read from `/sys/class/hwmon/hwmon*/pwm1` (0-255 scale)
+- Supports Raspberry Pi 5 native 4-pin fan connector
+- Compatible with kernel cooling device drivers
+
 ## [1.15.1] - 2025-11-21
 
 ### Improved

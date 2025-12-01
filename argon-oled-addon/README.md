@@ -13,6 +13,7 @@ This add-on brings the functionality of the Argon ONE OLED display to Home Assis
 - 🧠 **RAM Screen** - Memory usage with detailed statistics
 - 💾 **Storage Screen** - Disk space usage and availability
 - 🌡️ **Temperature Screen** - Large temperature display with status indicator
+- 🌀 **Fan Screen** - RPM speed and PWM duty cycle (Raspberry Pi 5 native fan)
 - 🌐 **IP Screen** - Network IP address and connection status
 - 📱 **QR Code Screen** - Scannable QR code for quick HA access
 - 🏠 **HA Status Screen** - Updates available and last backup date
@@ -60,7 +61,7 @@ Example configuration:
 ```yaml
 temp_unit: C
 switch_duration: 30
-screen_list: "logo clock cpu storage ram temp ip qr hastatus"
+screen_list: "logo clock cpu storage ram temp fan ip qr hastatus"
 debug_logging: false
 show_credits: true
 ```
@@ -93,13 +94,14 @@ Available screens:
 - `ram` - Memory usage statistics with progress bar
 - `storage` - Disk space information with progress bar
 - `temp` - Large temperature display with status classification
+- `fan` - Fan RPM and PWM duty cycle (Raspberry Pi 5 native fan)
 - `ip` - Network IP address with connection status
 - `qr` - QR code for Home Assistant URL
 - `hastatus` - HA system status (updates, backups)
 
-Example: `"logo clock cpu ram qr hastatus"`
+Example: `"logo clock cpu ram fan qr hastatus"`
 
-Default: `"logo qr hastatus clock cpu storage ram temp ip"`
+Default: `"logo clock cpu storage ram temp fan ip"`
 
 ### Option: `debug_logging`
 
