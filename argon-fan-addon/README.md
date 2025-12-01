@@ -133,10 +133,19 @@ For issues and questions:
 - Review the add-on logs in Home Assistant
 - Enable debug logging for more detailed information
 
+## Technical Details
+
+This implementation has been verified against and based on:
+- [Jeff Curless's argoneon repository](https://github.com/JeffCurless/argoneon) - Python implementation
+- [Adam Outler's HassOS Argon One Addon](https://github.com/adamoutler/HassOSArgonOneAddon) - Bash scripts
+
+For detailed technical information, see `IMPLEMENTATION_NOTES.md`.
+
 ## Credits
 
 - [Argon40](https://www.argon40.com/) - Original hardware and scripts
-- [Jeff Curless](https://github.com/JeffCurless/argoneon) - Enhanced Argon scripts
+- [Jeff Curless](https://github.com/JeffCurless/argoneon) - Enhanced Argon scripts and Python implementation
+- [Adam Outler](https://github.com/adamoutler/HassOSArgonOneAddon) - HassOS integration approach
 
 ## License
 

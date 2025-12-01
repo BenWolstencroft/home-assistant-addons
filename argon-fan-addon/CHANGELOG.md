@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.6] - 2025-12-01
+
+### Fixed - Major Overhaul
+- **Complete rewrite based on verified reference implementations**
+- Fixed I2C bus detection to use `i2cdetect` command first (matches adamoutler's approach)
+- Fixed fan spin-up sequence: now properly spins to 100% before setting target speed
+- Simplified I2C initialization - no longer attempts unsafe read operations during detection
+- Fixed error handling to not exit on I2C communication errors (just logs and continues)
+- Improved shutdown sequence to match reference implementation
+
+### Changed
+- I2C detection now uses `i2cdetect` output parsing (like bash reference scripts)
+- Fan control now properly implements spin-up sequence from argononed.py
+- Removed complex bus testing logic in favor of simple, proven approach
+- Better error messages that match reference implementations
+- Added subprocess import for temperature fallback support
+
+### Verified Against
+- Jeff Curless's argoneon project (argononed.py)
+- Adam Outler's HassOS Argon One Addon (bash scripts)
+
+### Documentation
+- Added IMPLEMENTATION_NOTES.md with detailed technical documentation
+- Documented hardware differences between Argon ONE v1/Classic and v3
+- Added manual testing commands and troubleshooting guide
+
 ## [1.0.5] - 2025-11-20
 
 ### Fixed
