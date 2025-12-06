@@ -51,6 +51,21 @@ The Active Heating Manager is a Home Assistant add-on that automatically manages
 - **Default**: `14`
 - **Description**: Temperature (in °C) to set when no TRVs are heating. Only applies in thermostat mode. This tells the boiler thermostat to stop heating when there's no demand.
 
+### `check_valve_state` (optional)
+- **Type**: boolean
+- **Default**: `true`
+- **Description**: Check physical valve state sensors before considering a TRV as heating. When enabled, the add-on looks for valve state sensors (e.g., `binary_sensor.xxx_valve_state`) and only counts a TRV as heating if both `hvac_action` is "heating" AND the valve is physically open. This prevents false heating detection when a valve is stuck closed. Only applies when `ignore_hvac_action` is `false`.
+
+### `ignore_hvac_action` (optional)
+- **Type**: boolean
+- **Default**: `false`
+- **Description**: When enabled, ignores the TRV's `hvac_action` attribute and relies purely on valve position sensors to determine heating demand. A TRV is considered heating if its valve position is greater than 0%. This is useful for TRVs that don't report accurate `hvac_action` states or for systems where you want direct valve position control. **Note**: Requires valve position sensors (e.g., `sensor.xxx_position`) for each TRV. When enabled, `check_valve_state` is ignored.
+
+### `use_dynamic_temperature` (optional)
+- **Type**: boolean
+- **Default**: `true`
+- **Description**: When enabled (thermostat mode only), calculates dynamic boiler target temperatures based on average TRV valve positions instead of using fixed `manual_on_temperature`. This provides more efficient heating by adjusting boiler temperature to match actual demand. When disabled, uses fixed temperatures.
+
 ### `polling_interval` (optional)
 - **Type**: integer (10-3600)
 - **Default**: `300` (5 minutes)
@@ -94,7 +109,9 @@ This add-on acts as a demand-based boiler controller. Your TRVs control individu
 **Workflow**:
 
 1. **Polling**: The add-on polls all configured TRV entities at the specified interval
-2. **Detection**: Checks if any TRV has `hvac_action` = `heating` (meaning that TRV is calling for heat based on its own schedule and temperature settings)
+2. **Detection**: Determines if any TRV is calling for heat:
+   - **Default mode** (`ignore_hvac_action` = `false`): Checks if `hvac_action` = `heating` (optionally with valve state verification)
+   - **Position mode** (`ignore_hvac_action` = `true`): Checks if valve position > 0%
 3. **Action**:
    - **If heating detected**: 
      - Thermostat mode: Sets boiler thermostat to manual mode at `manual_on_temperature`

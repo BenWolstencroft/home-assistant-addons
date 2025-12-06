@@ -42,6 +42,7 @@ def load_config():
             'manual_on_temperature': 21,
             'manual_off_temperature': 14,
             'check_valve_state': True,
+            'ignore_hvac_action': False,
             'use_dynamic_temperature': True,
             'polling_interval': 300
         }
@@ -526,7 +527,7 @@ def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_t
     return target_temp
 
 
-def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True, use_dynamic_temperature=True):
+def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True, ignore_hvac_action=False, use_dynamic_temperature=True):
     """Poll all configured TRV entities and manage boiler based on heating demand."""
     logger.info(f"Polling {len(trv_entities)} TRV entities...")
     
@@ -549,30 +550,48 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                 logger.info(f"  Current temp: {attributes['current_temperature']}")
             if 'temperature' in attributes:
                 logger.info(f"  Target temp: {attributes['temperature']}")
-            if 'hvac_action' in attributes:
-                hvac_action = attributes['hvac_action']
-                logger.info(f"  HVAC action: {hvac_action}")
-                
-                # Check if this TRV is actively heating
-                if hvac_action == 'heating':
-                    # Check valve state if enabled
-                    valve_open = True
-                    if check_valve_state:
-                        valve_open = get_valve_state(entity_id)
-                        logger.info(f"  Valve state: {'open' if valve_open else 'closed'}")
+            # Determine if TRV is demanding heat
+            is_heating = False
+            
+            if ignore_hvac_action:
+                # Ignore HVAC action, rely purely on valve position
+                logger.debug(f"  Ignoring HVAC action, checking valve position only")
+                position = get_valve_position(entity_id)
+                if position is not None and position > 0:
+                    is_heating = True
+                    logger.info(f"  Valve position: {position}% -> TRV is demanding heat")
+                else:
+                    logger.info(f"  Valve position: {position if position is not None else 'unavailable'} -> TRV not demanding heat")
+            else:
+                # Use HVAC action as primary indicator
+                if 'hvac_action' in attributes:
+                    hvac_action = attributes['hvac_action']
+                    logger.info(f"  HVAC action: {hvac_action}")
                     
-                    if valve_open:
-                        any_trv_heating = True
-                        logger.info(f"  -> TRV is heating with valve open!")
+                    # Check if this TRV is actively heating
+                    if hvac_action == 'heating':
+                        # Check valve state if enabled
+                        valve_open = True
+                        if check_valve_state:
+                            valve_open = get_valve_state(entity_id)
+                            logger.info(f"  Valve state: {'open' if valve_open else 'closed'}")
                         
-                        # Get valve position for dynamic temperature calculation
-                        if use_dynamic_temperature:
-                            position = get_valve_position(entity_id)
-                            if position is not None:
-                                valve_positions.append(position)
-                                logger.info(f"  Valve position: {position}%")
-                    else:
-                        logger.info(f"  -> TRV is heating but valve is closed, ignoring demand")
+                        if valve_open:
+                            is_heating = True
+                            logger.info(f"  -> TRV is heating with valve open!")
+                        else:
+                            logger.info(f"  -> TRV is heating but valve is closed, ignoring demand")
+            
+            # If TRV is demanding heat, track it and get valve position
+            if is_heating:
+                any_trv_heating = True
+                
+                # Get valve position for dynamic temperature calculation
+                if use_dynamic_temperature:
+                    position = get_valve_position(entity_id)
+                    if position is not None:
+                        valve_positions.append(position)
+                        logger.info(f"  Valve position: {position}%")
         else:
             logger.warning(f"Could not retrieve state for {entity_id}")
     
@@ -646,6 +665,7 @@ def main():
     manual_on_temperature = config.get('manual_on_temperature', 21)
     manual_off_temperature = config.get('manual_off_temperature', 14)
     check_valve_state = config.get('check_valve_state', True)
+    ignore_hvac_action = config.get('ignore_hvac_action', False)
     use_dynamic_temperature = config.get('use_dynamic_temperature', True)
     polling_interval = config.get('polling_interval', 300)
     mqtt_host = config.get('mqtt_host', 'core-mosquitto')
@@ -661,6 +681,7 @@ def main():
         logger.info(f"Manual OFF temperature: {manual_off_temperature}°C")
         logger.info(f"Use dynamic temperature: {use_dynamic_temperature}")
     logger.info(f"Check valve state: {check_valve_state}")
+    logger.info(f"Ignore HVAC action: {ignore_hvac_action}")
     logger.info(f"Polling interval: {polling_interval} seconds")
     logger.info(f"MQTT broker: {mqtt_host}:{mqtt_port}")
     
@@ -687,7 +708,7 @@ def main():
     try:
         # Main loop
         while True:
-            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state, use_dynamic_temperature)
+            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state, ignore_hvac_action, use_dynamic_temperature)
             logger.debug(f"Sleeping for {polling_interval} seconds...")
             time.sleep(polling_interval)
             

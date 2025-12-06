@@ -28,6 +28,7 @@ options:
   manual_on_temperature: 21
   manual_off_temperature: 14
   check_valve_state: true
+  ignore_hvac_action: false
   use_dynamic_temperature: true
   polling_interval: 300
   mqtt_host: "core-mosquitto"
@@ -42,6 +43,7 @@ schema:
   manual_on_temperature: int(15,35)
   manual_off_temperature: int(5,20)
   check_valve_state: bool
+  ignore_hvac_action: bool
   use_dynamic_temperature: bool
   polling_interval: int(10,3600)
   mqtt_host: str
