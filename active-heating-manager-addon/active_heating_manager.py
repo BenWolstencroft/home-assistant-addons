@@ -150,7 +150,7 @@ def publish_mqtt_discovery(sensor_id, sensor_name, unit=None, device_class=None,
         'name': 'Active Heating Manager',
         'manufacturer': 'Ben Wolstencroft',
         'model': 'Active Heating Manager',
-        'sw_version': '0.8.0'
+        'sw_version': '0.9.0'
     }
     
     # Discovery config

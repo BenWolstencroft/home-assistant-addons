@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.9.0] - 2025-12-06
+
+### Added
+- `ignore_hvac_action` option to rely purely on valve position sensors for heat demand detection
+- `min_valve_position_threshold` option to filter out marginal heating demand (prevents overnight cycling)
+- `min_trvs_heating` option to require multiple TRVs before activating boiler (demand aggregation)
+- Support for TRVs with inaccurate `hvac_action` reporting via position-only mode
+- Enhanced logging for threshold-based filtering decisions
+
+### Changed
+- Heating demand detection now supports two modes: HVAC action (default) or valve position only
+- Valve position threshold applies in both detection modes to prevent low-demand cycling
+- Boiler activation now checks sufficient demand (minimum TRVs or high valve positions)
+- More detailed logging when TRVs are filtered due to thresholds
+
+### Fixed
+- Rooms sitting 0.5°C from target no longer keep boiler running continuously overnight
+- Single room marginal demand can no longer trigger boiler (when min_trvs_heating > 1)
+
 ## [0.8.1] - 2025-11-26
 
 ### Changed
