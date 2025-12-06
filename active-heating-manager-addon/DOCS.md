@@ -61,6 +61,11 @@ The Active Heating Manager is a Home Assistant add-on that automatically manages
 - **Default**: `false`
 - **Description**: When enabled, ignores the TRV's `hvac_action` attribute and relies purely on valve position sensors to determine heating demand. A TRV is considered heating if its valve position is greater than 0%. This is useful for TRVs that don't report accurate `hvac_action` states or for systems where you want direct valve position control. **Note**: Requires valve position sensors (e.g., `sensor.xxx_position`) for each TRV. When enabled, `check_valve_state` is ignored.
 
+### `ignore_above_target` (optional)
+- **Type**: boolean
+- **Default**: `false`
+- **Description**: When enabled, ignores TRVs where the current temperature is above the target temperature. This works around buggy thermostats that incorrectly open their valves even when the room is already above the desired temperature. The TRV will be completely skipped from heating demand calculations if `current_temperature > temperature`.
+
 ### `min_valve_position_threshold` (optional)
 - **Type**: integer (0-100)
 - **Default**: `0` (disabled)

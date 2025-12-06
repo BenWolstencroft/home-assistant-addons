@@ -43,6 +43,7 @@ def load_config():
             'manual_off_temperature': 14,
             'check_valve_state': True,
             'ignore_hvac_action': False,
+            'ignore_above_target': False,
             'min_valve_position_threshold': 0,
             'min_trvs_heating': 1,
             'use_dynamic_temperature': True,
@@ -150,7 +151,7 @@ def publish_mqtt_discovery(sensor_id, sensor_name, unit=None, device_class=None,
         'name': 'Active Heating Manager',
         'manufacturer': 'Ben Wolstencroft',
         'model': 'Active Heating Manager',
-        'sw_version': '0.9.0'
+        'sw_version': '0.9.1'
     }
     
     # Discovery config
@@ -529,7 +530,7 @@ def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_t
     return target_temp
 
 
-def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True, ignore_hvac_action=False, min_valve_position_threshold=0, min_trvs_heating=1, use_dynamic_temperature=True):
+def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True, ignore_hvac_action=False, ignore_above_target=False, min_valve_position_threshold=0, min_trvs_heating=1, use_dynamic_temperature=True):
     """Poll all configured TRV entities and manage boiler based on heating demand."""
     logger.info(f"Polling {len(trv_entities)} TRV entities...")
     
@@ -552,6 +553,18 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                 logger.info(f"  Current temp: {attributes['current_temperature']}")
             if 'temperature' in attributes:
                 logger.info(f"  Target temp: {attributes['temperature']}")
+            # Check if current temperature is above target (buggy thermostat filter)
+            if ignore_above_target:
+                current_temp = attributes.get('current_temperature')
+                target_temp = attributes.get('temperature')
+                if current_temp is not None and target_temp is not None:
+                    try:
+                        if float(current_temp) > float(target_temp):
+                            logger.info(f"  Current temp ({current_temp}°C) > target temp ({target_temp}°C), ignoring TRV (Above target)")
+                            continue
+                    except (ValueError, TypeError):
+                        logger.debug(f"  Could not compare temperatures: current={current_temp}, target={target_temp}")
+            
             # Determine if TRV is demanding heat
             is_heating = False
             current_position = None
@@ -693,6 +706,7 @@ def main():
     manual_off_temperature = config.get('manual_off_temperature', 14)
     check_valve_state = config.get('check_valve_state', True)
     ignore_hvac_action = config.get('ignore_hvac_action', False)
+    ignore_above_target = config.get('ignore_above_target', False)
     min_valve_position_threshold = config.get('min_valve_position_threshold', 0)
     min_trvs_heating = config.get('min_trvs_heating', 1)
     use_dynamic_temperature = config.get('use_dynamic_temperature', True)
@@ -711,6 +725,7 @@ def main():
         logger.info(f"Use dynamic temperature: {use_dynamic_temperature}")
     logger.info(f"Check valve state: {check_valve_state}")
     logger.info(f"Ignore HVAC action: {ignore_hvac_action}")
+    logger.info(f"Ignore above target: {ignore_above_target}")
     logger.info(f"Minimum valve position threshold: {min_valve_position_threshold}%")
     logger.info(f"Minimum TRVs heating: {min_trvs_heating}")
     logger.info(f"Polling interval: {polling_interval} seconds")
@@ -739,7 +754,7 @@ def main():
     try:
         # Main loop
         while True:
-            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state, ignore_hvac_action, min_valve_position_threshold, min_trvs_heating, use_dynamic_temperature)
+            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state, ignore_hvac_action, ignore_above_target, min_valve_position_threshold, min_trvs_heating, use_dynamic_temperature)
             logger.debug(f"Sleeping for {polling_interval} seconds...")
             time.sleep(polling_interval)
             

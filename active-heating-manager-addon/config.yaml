@@ -1,5 +1,5 @@
 name: Active Heating Manager
-version: 0.9.0
+version: 0.9.1
 slug: active_heating_manager
 description: Smart heating management for Home Assistant
 url: https://github.com/BenWolstencroft/home-assistant-addons
@@ -29,6 +29,7 @@ options:
   manual_off_temperature: 14
   check_valve_state: true
   ignore_hvac_action: false
+  ignore_above_target: false
   min_valve_position_threshold: 0
   min_trvs_heating: 1
   use_dynamic_temperature: true
@@ -46,6 +47,7 @@ schema:
   manual_off_temperature: int(5,20)
   check_valve_state: bool
   ignore_hvac_action: bool
+  ignore_above_target: bool
   min_valve_position_threshold: int(0,100)
   min_trvs_heating: int(1,20)
   use_dynamic_temperature: bool

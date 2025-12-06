@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.1] - 2025-12-06
+
+### Added
+- `ignore_above_target` option to filter out buggy TRVs that open valves when current temperature is above target temperature
+- Prevents buggy thermostats from triggering unnecessary boiler activation
+
+### Changed
+- TRVs with current temp > target temp can now be completely ignored from heating demand calculations
+
 ## [0.9.0] - 2025-12-06
 
 ### Added
