@@ -61,6 +61,16 @@ The Active Heating Manager is a Home Assistant add-on that automatically manages
 - **Default**: `false`
 - **Description**: When enabled, ignores the TRV's `hvac_action` attribute and relies purely on valve position sensors to determine heating demand. A TRV is considered heating if its valve position is greater than 0%. This is useful for TRVs that don't report accurate `hvac_action` states or for systems where you want direct valve position control. **Note**: Requires valve position sensors (e.g., `sensor.xxx_position`) for each TRV. When enabled, `check_valve_state` is ignored.
 
+### `min_valve_position_threshold` (optional)
+- **Type**: integer (0-100)
+- **Default**: `0` (disabled)
+- **Description**: Minimum valve position percentage required to consider a TRV as demanding heat. This prevents rooms with marginal heating demand (e.g., 0.5°C from target) from keeping the boiler running continuously. For example, setting this to `15` means a TRV's valve must be open at least 15% to trigger boiler activation. Recommended values: 10-20% for overnight efficiency. **Note**: Requires valve position sensors for each TRV.
+
+### `min_trvs_heating` (optional)
+- **Type**: integer (1-20)
+- **Default**: `1`
+- **Description**: Minimum number of TRVs that must be demanding heat before the boiler activates. Setting this to `2` or higher prevents a single room with marginal demand from keeping the boiler running. Works in combination with `min_valve_position_threshold` - boiler activates if either the minimum number of TRVs are heating OR if fewer TRVs are heating but with high valve positions. Useful for preventing overnight cycling.
+
 ### `use_dynamic_temperature` (optional)
 - **Type**: boolean
 - **Default**: `true`
@@ -154,6 +164,32 @@ polling_interval: 60
 mqtt_host: core-mosquitto
 mqtt_port: 1883
 ```
+
+### Example 3: Preventing Overnight Cycling with Thresholds
+```yaml
+debug_logging: false
+trv_entities:
+  - climate.living_room_trv
+  - climate.bedroom_trv
+  - climate.kitchen_trv
+  - climate.bathroom_trv
+boiler_entity: climate.boiler_thermostat
+boiler_mode: thermostat
+manual_on_temperature: 21
+manual_off_temperature: 14
+check_valve_state: true
+ignore_hvac_action: false
+min_valve_position_threshold: 15  # Ignore TRVs with valve < 15% open
+min_trvs_heating: 2                # Require 2+ TRVs to activate boiler
+use_dynamic_temperature: true
+polling_interval: 120
+mqtt_host: core-mosquitto
+mqtt_port: 1883
+```
+
+This configuration prevents single rooms sitting 0.5°C from target from keeping the boiler running all night. The boiler only activates when:
+- 2 or more TRVs are demanding heat (regardless of valve position), OR
+- Any TRV has valve position above 15% (strong demand from one room)
 
 ## Getting Started
 

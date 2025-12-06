@@ -43,6 +43,8 @@ def load_config():
             'manual_off_temperature': 14,
             'check_valve_state': True,
             'ignore_hvac_action': False,
+            'min_valve_position_threshold': 0,
+            'min_trvs_heating': 1,
             'use_dynamic_temperature': True,
             'polling_interval': 300
         }
@@ -527,7 +529,7 @@ def calculate_dynamic_temperature(avg_valve_position, boiler_entity, manual_on_t
     return target_temp
 
 
-def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True, ignore_hvac_action=False, use_dynamic_temperature=True):
+def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat', manual_on_temperature=21, manual_off_temperature=14, check_valve_state=True, ignore_hvac_action=False, min_valve_position_threshold=0, min_trvs_heating=1, use_dynamic_temperature=True):
     """Poll all configured TRV entities and manage boiler based on heating demand."""
     logger.info(f"Polling {len(trv_entities)} TRV entities...")
     
@@ -552,16 +554,17 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                 logger.info(f"  Target temp: {attributes['temperature']}")
             # Determine if TRV is demanding heat
             is_heating = False
+            current_position = None
             
             if ignore_hvac_action:
                 # Ignore HVAC action, rely purely on valve position
                 logger.debug(f"  Ignoring HVAC action, checking valve position only")
-                position = get_valve_position(entity_id)
-                if position is not None and position > 0:
+                current_position = get_valve_position(entity_id)
+                if current_position is not None and current_position > min_valve_position_threshold:
                     is_heating = True
-                    logger.info(f"  Valve position: {position}% -> TRV is demanding heat")
+                    logger.info(f"  Valve position: {current_position}% (threshold: {min_valve_position_threshold}%) -> TRV is demanding heat")
                 else:
-                    logger.info(f"  Valve position: {position if position is not None else 'unavailable'} -> TRV not demanding heat")
+                    logger.info(f"  Valve position: {current_position if current_position is not None else 'unavailable'} (threshold: {min_valve_position_threshold}%) -> TRV not demanding heat")
             else:
                 # Use HVAC action as primary indicator
                 if 'hvac_action' in attributes:
@@ -577,8 +580,22 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
                             logger.info(f"  Valve state: {'open' if valve_open else 'closed'}")
                         
                         if valve_open:
-                            is_heating = True
-                            logger.info(f"  -> TRV is heating with valve open!")
+                            # Check valve position threshold if configured
+                            if min_valve_position_threshold > 0:
+                                current_position = get_valve_position(entity_id)
+                                if current_position is not None:
+                                    if current_position > min_valve_position_threshold:
+                                        is_heating = True
+                                        logger.info(f"  -> TRV is heating with valve at {current_position}% (above threshold: {min_valve_position_threshold}%)")
+                                    else:
+                                        logger.info(f"  -> TRV is heating but valve at {current_position}% (below threshold: {min_valve_position_threshold}%), ignoring marginal demand")
+                                else:
+                                    # No position sensor, fall back to hvac_action
+                                    is_heating = True
+                                    logger.info(f"  -> TRV is heating (no position sensor, accepting demand)")
+                            else:
+                                is_heating = True
+                                logger.info(f"  -> TRV is heating with valve open!")
                         else:
                             logger.info(f"  -> TRV is heating but valve is closed, ignoring demand")
             
@@ -586,12 +603,13 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
             if is_heating:
                 any_trv_heating = True
                 
-                # Get valve position for dynamic temperature calculation
+                # Get valve position for dynamic temperature calculation (if not already retrieved)
                 if use_dynamic_temperature:
-                    position = get_valve_position(entity_id)
-                    if position is not None:
-                        valve_positions.append(position)
-                        logger.info(f"  Valve position: {position}%")
+                    if current_position is None:
+                        current_position = get_valve_position(entity_id)
+                    if current_position is not None:
+                        valve_positions.append(current_position)
+                        logger.info(f"  Valve position: {current_position}%")
         else:
             logger.warning(f"Could not retrieve state for {entity_id}")
     
@@ -607,11 +625,20 @@ def poll_trv_entities(trv_entities, boiler_entity=None, boiler_mode='thermostat'
         # Count TRVs that are heating even if no position sensors
         trv_count_heating = len([e for e in trv_entities if any_trv_heating])  # This is a simplified count
     
+    # Apply demand aggregation threshold
+    sufficient_demand = False
+    if any_trv_heating:
+        if trv_count_heating >= min_trvs_heating:
+            sufficient_demand = True
+            logger.info(f"Sufficient demand: {trv_count_heating} TRVs heating (minimum: {min_trvs_heating})")
+        else:
+            logger.info(f"Insufficient demand: {trv_count_heating} TRVs heating (minimum: {min_trvs_heating}), boiler will not activate")
+    
     target_temp = None
     
     # Manage boiler based on heating demand and configured mode
     if boiler_entity:
-        if any_trv_heating:
+        if sufficient_demand:
             if boiler_mode == 'thermostat':
                 # Calculate target temperature based on valve positions if dynamic mode enabled
                 if use_dynamic_temperature and valve_positions:
@@ -666,6 +693,8 @@ def main():
     manual_off_temperature = config.get('manual_off_temperature', 14)
     check_valve_state = config.get('check_valve_state', True)
     ignore_hvac_action = config.get('ignore_hvac_action', False)
+    min_valve_position_threshold = config.get('min_valve_position_threshold', 0)
+    min_trvs_heating = config.get('min_trvs_heating', 1)
     use_dynamic_temperature = config.get('use_dynamic_temperature', True)
     polling_interval = config.get('polling_interval', 300)
     mqtt_host = config.get('mqtt_host', 'core-mosquitto')
@@ -682,6 +711,8 @@ def main():
         logger.info(f"Use dynamic temperature: {use_dynamic_temperature}")
     logger.info(f"Check valve state: {check_valve_state}")
     logger.info(f"Ignore HVAC action: {ignore_hvac_action}")
+    logger.info(f"Minimum valve position threshold: {min_valve_position_threshold}%")
+    logger.info(f"Minimum TRVs heating: {min_trvs_heating}")
     logger.info(f"Polling interval: {polling_interval} seconds")
     logger.info(f"MQTT broker: {mqtt_host}:{mqtt_port}")
     
@@ -708,7 +739,7 @@ def main():
     try:
         # Main loop
         while True:
-            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state, ignore_hvac_action, use_dynamic_temperature)
+            poll_trv_entities(trv_entities, boiler_entity, boiler_mode, manual_on_temperature, manual_off_temperature, check_valve_state, ignore_hvac_action, min_valve_position_threshold, min_trvs_heating, use_dynamic_temperature)
             logger.debug(f"Sleeping for {polling_interval} seconds...")
             time.sleep(polling_interval)
             
