@@ -2,6 +2,6 @@
 smbus2>=0.4.0
 requests>=2.31.0
 cbor2>=5.4.0
-qrcode>=7.4.0
+qrcode>=8.2
 luma.core>=2.4.0
 luma.oled>=3.12.0
