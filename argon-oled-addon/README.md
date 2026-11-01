@@ -30,6 +30,7 @@ This add-on brings the functionality of the Argon ONE OLED display to Home Assis
   - Long press (6+ seconds): Jump to first screen
   - Hold 10 seconds: Reboot system (with confirmation)
   - Hold 15 seconds: Shutdown system (with confirmation)
+- 🌙 Optional blank-until-button mode: the panel stays fully off until the case button is pressed, then turns off again after an idle timeout. Button actions are the same in that mode.
 - 🧪 Comprehensive unit test suite (100+ tests)
 - 🐛 Debug logging option for troubleshooting
 
@@ -104,6 +105,8 @@ switch_duration: 30
 screen_list: "logo clock cpu storage ram temp fan ip qr hastatus"
 debug_logging: false
 show_credits: true
+screen_off_until_button: false
+idle_dim_timeout: 60
 ```
 
 ### Option: `temp_unit`
@@ -160,6 +163,27 @@ Show credits splash screen on startup with GitHub QR code and version number.
 - **false** - Skip credits screen
 
 Default: `true`
+
+### Option: `screen_off_until_button`
+
+Keep the OLED off until the case button is pressed. This uses the SSD1306 display-off command (not a black image), so the panel has no residual glow while it is idle.
+
+- **false** - Normal behaviour: the panel is on and rotates screens (default)
+- **true** - Boot with the panel off. A button press turns it on and the usual rotation resumes. After `idle_dim_timeout` seconds without a button press, the panel turns off again.
+
+The press that wakes the panel is still a normal press. Single press moves to the next screen, double press to the previous screen, a long press jumps to the first screen, and holding for 10 or 15 seconds still opens the reboot or shutdown confirmation. The confirmation (and its 5-second cancel countdown) is drawn after the panel is switched back on, including when the hold starts with the display dark. Cancelling the confirmation leaves the panel on and restarts the idle timer.
+
+The startup credits splash is skipped in this mode so the screen does not light during boot. The button keeps working the whole time the panel is off, including the reboot and shutdown holds.
+
+Default: `false`
+
+### Option: `idle_dim_timeout`
+
+How long, in seconds, the panel stays on after the last button press when `screen_off_until_button` is enabled. The timer restarts on every press. This option has no effect when `screen_off_until_button` is `false`.
+
+Range: 5-3600 seconds
+
+Default: `60`
 
 ## Hardware Requirements
 
@@ -228,6 +252,8 @@ The physical button on GPIO 4 provides multiple functions:
 | Hold 15s | Shutdown system* |
 
 *Requires `hassio_role: manager` permission. A 5-second confirmation countdown is displayed before executing power commands.
+
+With `screen_off_until_button` enabled, those same gestures apply while the panel is off. The press turns the display on first; a 10 or 15 second hold still reaches reboot or shutdown confirmation, and the countdown is shown on the lit panel.
 
 ## Support
 

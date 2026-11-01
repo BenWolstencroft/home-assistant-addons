@@ -37,7 +37,9 @@ export SWITCH_DURATION=30
 export SCREEN_LIST="logo clock cpu ram"
 export DEBUG_LOGGING=true
 export SHOW_CREDITS=true
-export ADDON_VERSION=1.15.0
+export SCREEN_OFF_UNTIL_BUTTON=false
+export IDLE_DIM_TIMEOUT=60
+export ADDON_VERSION=1.17.0
 export SUPERVISOR_TOKEN=your_token_here
 python3 argon_oled.py
 ```
@@ -128,7 +130,21 @@ Tests are hardware-independent using mocks, allowing development on Windows, Lin
 
 ## Configuration Options
 
-See README.md for detailed configuration options.
+`run.sh` reads each option with `bashio::config` and exports it for `argon_oled.py`:
+
+| Option | Environment variable | Default |
+|--------|----------------------|---------|
+| `temp_unit` | `TEMP_UNIT` | `C` |
+| `switch_duration` | `SWITCH_DURATION` | `30` |
+| `screen_list` | `SCREEN_LIST` | `logo qr hastatus clock cpu storage ram temp ip` |
+| `debug_logging` | `DEBUG_LOGGING` | `false` |
+| `show_credits` | `SHOW_CREDITS` | `true` |
+| `screen_off_until_button` | `SCREEN_OFF_UNTIL_BUTTON` | `false` |
+| `idle_dim_timeout` | `IDLE_DIM_TIMEOUT` | `60` |
+
+`screen_off_until_button` keeps the SSD1306 off (`device.hide()` / `device.show()`) until the case button is pressed, then blanks it again after `idle_dim_timeout` seconds without a press. Button gestures are not remapped; the waking press still runs through the existing single / double / long / power-hold logic. Reboot and shutdown prompts turn the panel on before they draw.
+
+See README.md for the full description of every option.
 
 ## Development Workflow
 

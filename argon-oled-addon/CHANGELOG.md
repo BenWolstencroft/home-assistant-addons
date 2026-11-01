@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.17.0] - 2026-11-01
+
+### Added
+- **Screen off until button** - new `screen_off_until_button` option (default `false`). When enabled, the OLED boots dark and stays off at the hardware level (SSD1306 display-off via luma `hide()` / `show()`, so there is no residual glow) until the case button is pressed. After the last button interaction the panel turns off again once `idle_dim_timeout` seconds have passed.
+- **Idle dim timeout** - new `idle_dim_timeout` option (default `60`, range 5-3600 seconds). Used only when `screen_off_until_button` is enabled.
+- Button gestures are unchanged. The press that wakes a dark panel is still that same press: single press goes to the next screen, double press to the previous screen, a long press jumps to the first screen, and a 10s / 15s hold still opens reboot / shutdown confirmation. Any press restarts the idle timer.
+- Reboot and shutdown prompts (including the 5-second cancel countdown) switch the panel on before drawing, so a hold that starts while the display is dark still shows the confirmation. Cancelling the prompt leaves the panel awake and restarts the idle timer.
+- The startup credits splash is skipped while the panel is set to boot dark, so it does not light the screen. The button monitor keeps running the whole time the panel is off.
+
 ## [1.16.2] - 2025-12-01
 
 ### Changed

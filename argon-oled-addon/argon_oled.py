@@ -52,12 +52,27 @@ HA_API_URL = 'http://supervisor/core/api'
 class ArgonOLED:
     """Argon ONE OLED Display Manager"""
     
-    def __init__(self, screen_list, switch_duration=30, temp_unit='C', debug_logging=False, show_credits=True, version="1.0.0"):
+    def __init__(self, screen_list, switch_duration=30, temp_unit='C', debug_logging=False, show_credits=True, version="1.0.0", screen_off_until_button=False, idle_dim_timeout=60):
         """Initialize the OLED display"""
+        self.screen_off_until_button = screen_off_until_button
+        self.idle_dim_timeout = idle_dim_timeout
+        # True only after a successful SSD1306 display-off (device.hide()).
+        self.display_blanked = False
+        self.button_held = False  # Physical press in progress; do not blank mid-gesture
+        self._panel_lock = threading.Lock()
+        self._refresh = threading.Event()
+        self.last_activity = time.time()
+
         try:
             self.serial = i2c(port=I2C_BUS, address=I2C_ADDRESS)
             self.device = ssd1306(self.serial, width=SCREEN_WIDTH, height=SCREEN_HEIGHT)
             self.device.clear()
+            # luma's init leaves the panel on (DISPLAYON). hide() sends
+            # DISPLAYOFF so a dark boot has no residual OLED glow.
+            if self.screen_off_until_button:
+                self.device.hide()
+                self.display_blanked = True
+                print(f"OLED panel off until button press (idle {self.idle_dim_timeout}s)")
         except Exception as e:
             print(f"Error initializing OLED: {e}")
             sys.exit(1)
@@ -191,6 +206,108 @@ class ArgonOLED:
         if self.debug_logging:
             print(message)
             sys.stdout.flush()
+
+    def _on_button_activity(self, end_hold=False):
+        """Reset the idle timer and wake a blanked panel.
+
+        Called on the leading edge of a press and again when it is released.
+        This is not a gesture. press_count, pulsetime and last_press_time
+        stay entirely inside button_monitor, so the press that lights the
+        panel is still classified afterwards as next, previous, first
+        screen, or a 10s/15s power hold, including the first click of a
+        double press.
+
+        end_hold clears the physical-hold flag in the same critical section
+        as the timer update. Otherwise a hold longer than idle_dim_timeout
+        could hide() in the gap before the release was recorded.
+        """
+        if not end_hold and not self.screen_off_until_button:
+            return
+        with self._panel_lock:
+            if end_hold:
+                self.button_held = False
+            if not self.screen_off_until_button:
+                return
+            self.last_activity = time.time()
+            if not self.display_blanked:
+                return
+            try:
+                self.device.show()
+            except Exception as e:
+                self.debug_log(f"Error waking display: {e}")
+                return
+            self.display_blanked = False
+            # The panel may have been dark longer than switch_duration.
+            # Restart the interval so auto-rotation does not also advance
+            # the screen on top of whatever this press classifies as.
+            self.last_switch = time.time()
+            self.debug_log("Panel woken by button")
+            self._refresh.set()
+
+    def _maybe_blank(self):
+        """Turn the panel off with display-off after the idle timeout.
+
+        Does nothing when the mode is disabled, the button is held, or a
+        power confirmation is on screen. Safe to call from the main loop;
+        the button thread is not waited on.
+        """
+        if not self.screen_off_until_button:
+            return False
+        with self._panel_lock:
+            if self.display_blanked or self.button_held or self.button_in_power_hold:
+                return False
+            if time.time() - self.last_activity < self.idle_dim_timeout:
+                return False
+            try:
+                self.device.hide()
+            except Exception as e:
+                self.debug_log(f"Error blanking display: {e}")
+                return False
+            self.display_blanked = True
+            self.debug_log("Panel blanked after idle timeout")
+            return True
+
+    def _ensure_panel_on_for_power_ui(self):
+        """Wake the panel and pause rotation before reboot/shutdown UI.
+
+        A hold that started while the panel was dark must still draw its
+        "release to confirm" message and the 5-second countdown on a panel
+        that is actually on. Does not change gesture timing or classification.
+        """
+        with self._panel_lock:
+            self.button_in_power_hold = True
+            if not self.screen_off_until_button:
+                return
+            self.last_activity = time.time()
+            if not self.display_blanked:
+                return
+            try:
+                self.device.show()
+            except Exception as e:
+                self.debug_log(f"Error waking display for power prompt: {e}")
+                return
+            self.display_blanked = False
+            self.last_switch = time.time()
+            self.debug_log("Panel woken for power confirmation")
+            self._refresh.set()
+
+    def _restore_after_power_ui(self):
+        """Leave the panel awake with a fresh idle timer after a power prompt ends."""
+        with self._panel_lock:
+            if self.screen_off_until_button:
+                self.last_activity = time.time()
+                if self.display_blanked:
+                    try:
+                        self.device.show()
+                    except Exception as e:
+                        self.debug_log(f"Error waking display: {e}")
+                    else:
+                        self.display_blanked = False
+                        self.last_switch = time.time()
+                        self._refresh.set()
+            # Same point the confirmation path used to clear this flag,
+            # so screen rotation resumes when the prompt is finished.
+            self.button_in_power_hold = False
     
     def _draw_confirmation_countdown(self, action_name):
         """Draw and handle confirmation countdown for power actions
@@ -200,6 +317,8 @@ class ArgonOLED:
         button_was_released = False
         
         self.debug_log(f"Starting {action_name} confirmation countdown...")
+        # Countdown pixels must not be written while the panel is off.
+        self._ensure_panel_on_for_power_ui()
         
         for countdown in range(5, 0, -1):
             # Draw countdown with progress bar
@@ -233,7 +352,9 @@ class ArgonOLED:
                         elif button_state == Value.INACTIVE and button_was_released:
                             self.debug_log(f"{action_name} cancelled by button press")
                             cancelled = True
-                            self.button_in_power_hold = False  # Resume screen rotation
+                            # Awake, idle timer restarted, then the flag drops
+                            # so the main loop may draw again.
+                            self._restore_after_power_ui()
                             with canvas(self.device) as draw:
                                 draw.rectangle(self.device.bounding_box, outline="white", fill="black")
                                 draw.text((20, 20), "CANCELLED", fill="white", font=self.font_large)
@@ -251,6 +372,7 @@ class ArgonOLED:
     def _execute_power_command(self, command, display_name):
         """Execute a power command (reboot or shutdown) via Supervisor API"""
         self.debug_log(f"{display_name.upper()}: Executing {command} command")
+        self._ensure_panel_on_for_power_ui()
         
         # Display executing message
         with canvas(self.device) as draw:
@@ -305,6 +427,10 @@ class ArgonOLED:
     
     def display_screen(self, screen_name):
         """Display a specific screen"""
+        # device.display() updates SSD1306 RAM without sending DISPLAYON,
+        # but a frame must not be composed while the panel is meant to be off.
+        if self.display_blanked:
+            return
         # Delegate to renderer with system_info and supervisor_api
         if screen_name == "clock":
             self.renderer.draw_clock()
@@ -354,35 +480,49 @@ class ArgonOLED:
                         press_start = time.time()
                         reboot_displayed = False
                         shutdown_displayed = False
-                        
-                        # Wait for release and display messages for long holds
-                        while True:
-                            if self.gpio_line.get_value(PIN_BUTTON) == Value.ACTIVE:  # Released
-                                break
-                            
-                            # Check how long button has been held
-                            hold_time = time.time() - press_start
-                            
-                            # Display shutdown message if held for 15+ seconds
-                            if hold_time >= 15.0 and not shutdown_displayed:
-                                self.debug_log("Button: 15 seconds - will shutdown on release")
-                                with canvas(self.device) as draw:
-                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
-                                    draw.text((10, 15), "SHUTDOWN", fill="white", font=self.font_large)
-                                    draw.text((5, 40), "Release to confirm", fill="white", font=self.font_small)
-                                shutdown_displayed = True
-                            
-                            # Display reboot message if held for 10+ seconds (but less than 15)
-                            elif hold_time >= 10.0 and not reboot_displayed and not shutdown_displayed:
-                                self.debug_log("Button: 10 seconds - will reboot on release")
-                                self.button_in_power_hold = True
-                                with canvas(self.device) as draw:
-                                    draw.rectangle(self.device.bounding_box, outline="white", fill="black")
-                                    draw.text((15, 15), "REBOOTING", fill="white", font=self.font_large)
-                                    draw.text((5, 40), "Release to confirm", fill="white", font=self.font_small)
-                                reboot_displayed = True
-                            
-                            time.sleep(0.1)
+                        # Wake is a side effect of this press, not a new gesture.
+                        # Do not return and do not touch press_count, pulsetime
+                        # or last_press_time. Those still decide next / previous /
+                        # first screen and the 10s / 15s holds, so the first click
+                        # of a double press (two releases within 0.5s) is not dropped.
+                        self.button_held = True
+                        # Wait for release and display messages for long holds.
+                        # button_held stays set for the whole physical press so
+                        # the idle blanker cannot hide() underneath a 10s/15s hold.
+                        try:
+                            self._on_button_activity()
+                            while True:
+                                if self.gpio_line.get_value(PIN_BUTTON) == Value.ACTIVE:  # Released
+                                    break
+                                
+                                # Check how long button has been held
+                                hold_time = time.time() - press_start
+                                
+                                # Display shutdown message if held for 15+ seconds
+                                if hold_time >= 15.0 and not shutdown_displayed:
+                                    self.debug_log("Button: 15 seconds - will shutdown on release")
+                                    self._ensure_panel_on_for_power_ui()
+                                    with canvas(self.device) as draw:
+                                        draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                        draw.text((10, 15), "SHUTDOWN", fill="white", font=self.font_large)
+                                        draw.text((5, 40), "Release to confirm", fill="white", font=self.font_small)
+                                    shutdown_displayed = True
+                                
+                                # Display reboot message if held for 10+ seconds (but less than 15)
+                                elif hold_time >= 10.0 and not reboot_displayed and not shutdown_displayed:
+                                    self.debug_log("Button: 10 seconds - will reboot on release")
+                                    self._ensure_panel_on_for_power_ui()
+                                    with canvas(self.device) as draw:
+                                        draw.rectangle(self.device.bounding_box, outline="white", fill="black")
+                                        draw.text((15, 15), "REBOOTING", fill="white", font=self.font_large)
+                                        draw.text((5, 40), "Release to confirm", fill="white", font=self.font_small)
+                                    reboot_displayed = True
+                                
+                                time.sleep(0.1)
+                        finally:
+                            # Cover the whole physical hold, then start the idle
+                            # timeout from the release rather than from the press.
+                            self._on_button_activity(end_hold=True)
                         
                         press_end = time.time()
                         total_hold = press_end - press_start
@@ -401,11 +541,17 @@ class ArgonOLED:
                         elif total_hold >= 15.0 and not self.power_management_enabled:
                             # User tried to shutdown but we don't have permissions
                             self.debug_log("Button held for shutdown but power management is disabled")
+                            self._ensure_panel_on_for_power_ui()
                             with canvas(self.device) as draw:
                                 draw.rectangle(self.device.bounding_box, outline="white", fill="black")
                                 draw.text((15, 15), "NO PERMISSION", fill="white", font=self.font_medium)
                                 draw.text((5, 35), "Need manager role", fill="white", font=self.font_small)
                             time.sleep(3)
+                            if self.screen_off_until_button:
+                                # The power-hold flag would otherwise stay set and
+                                # the idle blanker would never run again. When the
+                                # mode is off, leave the flag as the previous code did.
+                                self._restore_after_power_ui()
                         
                         elif total_hold >= 10.0 and self.power_management_enabled:
                             self.debug_log("Button released after 10+ seconds - reboot selected")
@@ -416,11 +562,14 @@ class ArgonOLED:
                         elif total_hold >= 10.0 and not self.power_management_enabled:
                             # User tried to reboot but we don't have permissions
                             self.debug_log("Button held for reboot but power management is disabled")
+                            self._ensure_panel_on_for_power_ui()
                             with canvas(self.device) as draw:
                                 draw.rectangle(self.device.bounding_box, outline="white", fill="black")
                                 draw.text((15, 15), "NO PERMISSION", fill="white", font=self.font_medium)
                                 draw.text((5, 35), "Need manager role", fill="white", font=self.font_small)
                             time.sleep(3)
+                            if self.screen_off_until_button:
+                                self._restore_after_power_ui()
                     else:
                         time.sleep(0.1)
                         continue
@@ -430,7 +579,10 @@ class ArgonOLED:
                     time.sleep(1)
                     continue
                 
-                # Check if this is part of a double press (within 0.5 seconds)
+                # Unchanged gesture classifier. A press that woke the panel
+                # falls through to here with press_count / last_press_time /
+                # pulsetime untouched, so a double press (second release
+                # within 0.5s) is not turned into a lone single press.
                 if press_end - last_press_time < 0.5:
                     press_count += 1
                 else:
@@ -469,19 +621,62 @@ class ArgonOLED:
         except:
             pass
     
+    def _service_once(self, current_time):
+        """One pass of blanking, button actions, rotation and drawing.
+
+        Auto-rotation and screen draws are skipped while the panel is off
+        so a stale switch interval cannot paint a frame after hide().
+        """
+        if self.screen_off_until_button:
+            self._maybe_blank()
+
+        # Check for button actions
+        if self.button_action:
+            if self.button_action == "next":
+                self.current_screen = (self.current_screen + 1) % len(self.screen_list)
+            elif self.button_action == "prev":
+                self.current_screen = (self.current_screen - 1) % len(self.screen_list)
+            elif self.button_action == "first":
+                self.current_screen = 0
+            self.button_action = None
+            self.last_switch = current_time
+
+        # Switch screen if needed (auto-rotation) - but not during power hold
+        # and not while the panel is hardware-off.
+        elif current_time - self.last_switch >= self.switch_duration and not self.button_in_power_hold and not self.display_blanked:
+            self.current_screen = (self.current_screen + 1) % len(self.screen_list)
+            self.last_switch = current_time
+
+        # Display current screen - but not during power hold or while blanked.
+        # Blank again immediately before the draw so this pass cannot both
+        # turn the panel off and then paint a screen.
+        if not self.button_in_power_hold and not self.display_blanked:
+            if self.screen_off_until_button:
+                self._maybe_blank()
+            if not self.button_in_power_hold and not self.display_blanked:
+                screen_name = self.screen_list[self.current_screen]
+                self.display_screen(screen_name)
+
     def run(self):
         """Main loop"""
         self.debug_log(f"Starting Argon OLED Display")
         self.debug_log(f"Screen rotation: {' -> '.join(self.screen_list)}")
         self.debug_log(f"Switch duration: {self.switch_duration}s")
         self.debug_log(f"Temperature unit: {self.temp_unit}")
+        self.debug_log(f"Screen off until button: {self.screen_off_until_button}")
+        if self.screen_off_until_button:
+            self.debug_log(f"Idle dim timeout: {self.idle_dim_timeout}s")
         
-        # Show credits splash screen if enabled
-        if self.show_credits and not self.credits_shown:
+        # Show credits splash screen if enabled. Skip it when the panel
+        # is configured to boot dark, otherwise the splash would light it.
+        if self.show_credits and not self.credits_shown and not self.display_blanked:
             self.debug_log("Displaying credits splash screen")
             self.renderer.draw_credits(version=self.version)
             self.credits_shown = True
             time.sleep(5)  # Show for 5 seconds
+        elif self.show_credits and not self.credits_shown and self.display_blanked:
+            self.debug_log("Skipping credits splash so the panel stays off")
+            self.credits_shown = True
         
         # Start button monitoring thread if GPIO is available
         if GPIO_AVAILABLE:
@@ -498,29 +693,14 @@ class ArgonOLED:
                 
                 loop_count += 1
                 current_time = time.time()
-                
-                # Check for button actions
-                if self.button_action:
-                    if self.button_action == "next":
-                        self.current_screen = (self.current_screen + 1) % len(self.screen_list)
-                    elif self.button_action == "prev":
-                        self.current_screen = (self.current_screen - 1) % len(self.screen_list)
-                    elif self.button_action == "first":
-                        self.current_screen = 0
-                    self.button_action = None
-                    self.last_switch = current_time
-                
-                # Switch screen if needed (auto-rotation) - but not during power hold
-                elif current_time - self.last_switch >= self.switch_duration and not self.button_in_power_hold:
-                    self.current_screen = (self.current_screen + 1) % len(self.screen_list)
-                    self.last_switch = current_time
-                
-                # Display current screen - but not during power hold
-                if not self.button_in_power_hold:
-                    screen_name = self.screen_list[self.current_screen]
-                    self.display_screen(screen_name)
-                
-                time.sleep(1)
+                self._service_once(current_time)
+
+                if self.screen_off_until_button and self.display_blanked:
+                    # Return as soon as the button thread turns the panel on.
+                    self._refresh.wait(timeout=1.0)
+                    self._refresh.clear()
+                else:
+                    time.sleep(1)
         
         except KeyboardInterrupt:
             print("\nShutting down...")
@@ -540,12 +720,23 @@ def main():
     temp_unit = os.environ.get('TEMP_UNIT', 'C')
     debug_logging = os.environ.get('DEBUG_LOGGING', 'false').lower() in ('true', '1', 'yes')
     show_credits = os.environ.get('SHOW_CREDITS', 'true').lower() in ('true', '1', 'yes')
+    screen_off_until_button = os.environ.get('SCREEN_OFF_UNTIL_BUTTON', 'false').lower() in ('true', '1', 'yes')
+    idle_dim_timeout = int(os.environ.get('IDLE_DIM_TIMEOUT', '60'))
     
     # Get version from environment (set by run.sh from config.yaml)
     version = os.environ.get('ADDON_VERSION', '1.0.0')
     
     # Create and run the OLED display
-    oled = ArgonOLED(screen_list, switch_duration, temp_unit, debug_logging, show_credits, version)
+    oled = ArgonOLED(
+        screen_list,
+        switch_duration,
+        temp_unit,
+        debug_logging,
+        show_credits,
+        version,
+        screen_off_until_button,
+        idle_dim_timeout,
+    )
     oled.run()
 
 
