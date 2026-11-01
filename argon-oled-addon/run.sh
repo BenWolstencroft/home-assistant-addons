@@ -14,6 +14,7 @@ DEBUG_LOGGING=$(bashio::config 'debug_logging')
 SHOW_CREDITS=$(bashio::config 'show_credits')
 SCREEN_OFF_UNTIL_BUTTON=$(bashio::config 'screen_off_until_button')
 IDLE_DIM_TIMEOUT=$(bashio::config 'idle_dim_timeout')
+BUTTON_SOURCE=$(bashio::config 'button_source')
 
 # Get addon version from config.yaml
 ADDON_VERSION=$(bashio::addon.version)
@@ -26,6 +27,7 @@ bashio::log.info "Debug logging: ${DEBUG_LOGGING}"
 bashio::log.info "Show credits: ${SHOW_CREDITS}"
 bashio::log.info "Screen off until button: ${SCREEN_OFF_UNTIL_BUTTON}"
 bashio::log.info "Idle dim timeout: ${IDLE_DIM_TIMEOUT}s"
+bashio::log.info "Button source: ${BUTTON_SOURCE}"
 bashio::log.info "Addon version: ${ADDON_VERSION}"
 
 # Check if I2C device is available
@@ -44,6 +46,7 @@ export DEBUG_LOGGING="${DEBUG_LOGGING}"
 export SHOW_CREDITS="${SHOW_CREDITS}"
 export SCREEN_OFF_UNTIL_BUTTON="${SCREEN_OFF_UNTIL_BUTTON}"
 export IDLE_DIM_TIMEOUT="${IDLE_DIM_TIMEOUT}"
+export BUTTON_SOURCE="${BUTTON_SOURCE}"
 export ADDON_VERSION="${ADDON_VERSION}"
 
 # Run the OLED display script

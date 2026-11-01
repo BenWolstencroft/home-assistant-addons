@@ -1,5 +1,5 @@
 name: Argon ONE OLED Display
-version: 1.17.0
+version: 1.18.0
 slug: argon_one_oled_display
 description: Display system information on Argon ONE OLED screen
 url: https://github.com/yourusername/argon-oled-ha-addon
@@ -45,6 +45,26 @@ devices:
   - /dev/i2c-24
   - /dev/i2c-25
   - /dev/i2c-26
+  # pwr_button is a kernel input device on Argon ONE V5 / HAOS, not GPIO 4.
+  # Supervisor ignores entries that are not present, so other boards still start.
+  # eventN is discovered at runtime; these nodes are what it is allowed to open.
+  - /dev/input/by-path/platform-pwr_button-event
+  - /dev/input/event0
+  - /dev/input/event1
+  - /dev/input/event2
+  - /dev/input/event3
+  - /dev/input/event4
+  - /dev/input/event5
+  - /dev/input/event6
+  - /dev/input/event7
+  - /dev/input/event8
+  - /dev/input/event9
+  - /dev/input/event10
+  - /dev/input/event11
+  - /dev/input/event12
+  - /dev/input/event13
+  - /dev/input/event14
+  - /dev/input/event15
 options:
   temp_unit: C
   switch_duration: 30
@@ -53,6 +73,7 @@ options:
   show_credits: true
   screen_off_until_button: false
   idle_dim_timeout: 60
+  button_source: power_key
 schema:
   temp_unit: list(C|F)
   switch_duration: int(5,300)
@@ -61,3 +82,4 @@ schema:
   show_credits: bool
   screen_off_until_button: bool
   idle_dim_timeout: int(5,3600)
+  button_source: list(gpio|power_key)

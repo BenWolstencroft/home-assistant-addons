@@ -24,10 +24,10 @@ This add-on brings the functionality of the Argon ONE OLED display to Home Assis
 - 🌡️ Temperature display in Celsius or Fahrenheit
 - ⚡ Real-time system monitoring with modular architecture
 - 📊 Progress bars with customizable units (%, °C, °F)
-- 🔘 Physical button support (GPIO 4):
+- 🔘 Physical button support, from the kernel power key or from GPIO 4:
   - Single press: Next screen
   - Double press: Previous screen
-  - Long press (6+ seconds): Jump to first screen
+  - Long press (about 0.6 seconds): Jump to first screen
   - Hold 10 seconds: Reboot system (with confirmation)
   - Hold 15 seconds: Shutdown system (with confirmation)
 - 🌙 Optional blank-until-button mode: the panel stays fully off until the case button is pressed, then turns off again after an idle timeout. Button actions are the same in that mode.
@@ -107,6 +107,7 @@ debug_logging: false
 show_credits: true
 screen_off_until_button: false
 idle_dim_timeout: 60
+button_source: power_key
 ```
 
 ### Option: `temp_unit`
@@ -185,6 +186,19 @@ Range: 5-3600 seconds
 
 Default: `60`
 
+### Option: `button_source`
+
+Which input the case button is read from. The gestures are the same either way: single press next screen, double press (second click within 0.5s) previous screen, long press (about 0.6s) first screen, hold 10s reboot confirmation, hold 15s shutdown confirmation.
+
+- **power_key** - Read `KEY_POWER` events from the kernel `pwr_button` input device (default). This is the correct choice for an Argon ONE V5 on Home Assistant OS. On that hardware GPIO line 4 stays high and never reports a press; the kernel gpio-keys driver already publishes the button as an input device. The event number is discovered from `/proc/bus/input/devices` (it is not hardcoded). The device is not exclusively grabbed, so systemd-logind still sees the key.
+- **gpio** - Poll GPIO line 4, active-low, as in v1.17.0 and earlier. Use this on a board where that line really is the case button.
+
+If the selected source cannot be opened, the add-on log prints a warning that names `button_source` and the value to switch to. It does not silently change source, and the button does nothing until the option matches the hardware.
+
+On Home Assistant OS, logind is configured with `HandlePowerKey=ignore` and `HandlePowerKeyLongPress=poweroff`. A short press does not shut the Pi down (that matches a short press, a double press, and the ~0.6s "first screen" hold). A hold of about 5 seconds powers the host off before this add-on's 10 second reboot and 15 second shutdown prompts can finish. To use those two holds, set `HandlePowerKeyLongPress=ignore` in the host's `/etc/systemd/logind.conf` and restart logind. This add-on does not take the key away from logind.
+
+Default: `power_key`
+
 ## Hardware Requirements
 
 - Argon ONE case with OLED display (128x64 SSD1306)
@@ -241,19 +255,19 @@ The modular design allows for:
 
 ## Button Controls
 
-The physical button on GPIO 4 provides multiple functions:
+The physical button provides multiple functions. On an Argon ONE V5 running Home Assistant OS, set `button_source: power_key` (the default). Set `button_source: gpio` only when the button is actually GPIO line 4.
 
 | Action | Function |
 |--------|----------|
 | Single press | Next screen |
-| Double press | Previous screen |
-| Long press (6s) | Jump to first screen |
+| Double press (within 0.5s) | Previous screen |
+| Long press (about 0.6s) | Jump to first screen |
 | Hold 10s | Reboot system* |
 | Hold 15s | Shutdown system* |
 
-*Requires `hassio_role: manager` permission. A 5-second confirmation countdown is displayed before executing power commands.
+*Requires `hassio_role: manager` permission. A 5-second confirmation countdown is displayed before executing power commands. With `screen_off_until_button` enabled, the press turns the display on first, including when a hold starts while the panel is dark.
 
-With `screen_off_until_button` enabled, those same gestures apply while the panel is off. The press turns the display on first; a 10 or 15 second hold still reaches reboot or shutdown confirmation, and the countdown is shown on the lit panel.
+On HAOS the host still receives the power key. A short press does not shut down. A hold of about 5 seconds does (`HandlePowerKeyLongPress=poweroff`) unless that host setting is changed to `ignore`. See `button_source` above.
 
 ## Support
 

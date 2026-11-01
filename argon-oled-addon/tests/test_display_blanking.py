@@ -51,6 +51,8 @@ def make_oled(**overrides):
     oled.show_credits = True
     oled.credits_shown = False
     oled.version = "1.17.0"
+    oled.button_source = "gpio"
+    oled._power_key = None
     oled._panel_lock = threading.Lock()
     oled._refresh = threading.Event()
     oled.device = MagicMock()
@@ -284,6 +286,7 @@ class TestRotationDoesNotRaceBlanking(unittest.TestCase):
             raise KeyboardInterrupt
 
         oled._service_once = stop
+        oled.gpio_line = None
         with patch.object(argon_oled, "GPIO_AVAILABLE", False):
             oled.run()
         oled.renderer.draw_credits.assert_not_called()
@@ -301,6 +304,7 @@ class TestRotationDoesNotRaceBlanking(unittest.TestCase):
             raise KeyboardInterrupt
 
         oled._service_once = stop
+        oled.gpio_line = None
         with patch.object(argon_oled, "GPIO_AVAILABLE", False), \
                 patch("argon_oled.time.sleep", lambda _dt: None):
             oled.run()
@@ -545,6 +549,7 @@ class TestOptionParsing(unittest.TestCase):
             "IDLE_DIM_TIMEOUT",
             "SHOW_CREDITS",
             "DEBUG_LOGGING",
+            "BUTTON_SOURCE",
         }
         env = {key: os.environ[key] for key in removed if key in os.environ}
         with patch.dict(os.environ, env, clear=False):
@@ -555,6 +560,7 @@ class TestOptionParsing(unittest.TestCase):
         args = cls.call_args[0]
         self.assertFalse(args[6])
         self.assertEqual(args[7], 60)
+        self.assertEqual(args[8], "power_key")
 
 
 if __name__ == "__main__":

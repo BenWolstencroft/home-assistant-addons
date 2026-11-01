@@ -39,7 +39,8 @@ export DEBUG_LOGGING=true
 export SHOW_CREDITS=true
 export SCREEN_OFF_UNTIL_BUTTON=false
 export IDLE_DIM_TIMEOUT=60
-export ADDON_VERSION=1.17.0
+export BUTTON_SOURCE=power_key
+export ADDON_VERSION=1.18.0
 export SUPERVISOR_TOKEN=your_token_here
 python3 argon_oled.py
 ```
@@ -141,8 +142,18 @@ Tests are hardware-independent using mocks, allowing development on Windows, Lin
 | `show_credits` | `SHOW_CREDITS` | `true` |
 | `screen_off_until_button` | `SCREEN_OFF_UNTIL_BUTTON` | `false` |
 | `idle_dim_timeout` | `IDLE_DIM_TIMEOUT` | `60` |
+| `button_source` | `BUTTON_SOURCE` | `power_key` |
 
-`screen_off_until_button` keeps the SSD1306 off (`device.hide()` / `device.show()`) until the case button is pressed, then blanks it again after `idle_dim_timeout` seconds without a press. Button gestures are not remapped; the waking press still runs through the existing single / double / long / power-hold logic. Reboot and shutdown prompts turn the panel on before they draw.
+`screen_off_until_button` keeps the SSD1306 off (`device.hide()` / `device.show()`) until the case button is pressed, then blanks it again after `idle_dim_timeout` seconds without a press. Button gestures are not remapped; the waking press still runs through the single / double / long / power-hold logic. Reboot and shutdown prompts turn the panel on before they draw.
+
+`button_source` selects the input:
+
+- `power_key` (default) reads `KEY_POWER` from the `pwr_button` input device. Use this on Argon ONE V5 / HAOS. The node is discovered from `/proc/bus/input/devices`; `/dev/input/eventN` is not hardcoded. The by-path device `/dev/input/by-path/platform-pwr_button-event` is a fallback. The device is not grabbed, so logind still sees it.
+- `gpio` polls GPIO line 4 the way v1.17.0 did. Use this when that line is actually the button.
+
+If the chosen source cannot be opened, startup logs a warning that names `button_source` and the other value. It does not switch by itself.
+
+`config.yaml` lists `/dev/input/event0` through `event15` plus the by-path node so Supervisor can allow those device numbers. Paths that do not exist on a given board are ignored and do not stop the add-on from starting. On HAOS, a short power-key press does not shut down (`HandlePowerKey=ignore`). A hold of about 5 seconds does (`HandlePowerKeyLongPress=poweroff`), which happens before the add-on's 10s/15s prompts. Set the long-press action to `ignore` on the host to use those holds.
 
 See README.md for the full description of every option.
 
