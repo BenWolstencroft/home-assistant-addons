@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.18.0] - 2026-11-01
+
+### Added
+- **Button source** - new `button_source` option: `power_key` (default) or `gpio`.
+  - `power_key` reads `KEY_POWER` from the kernel `pwr_button` input device (`/proc/bus/input/devices`, then `/dev/input/eventN`; the by-path link `platform-pwr_button-event` is also tried). This is the working path on an Argon ONE V5 running Home Assistant OS, where GPIO line 4 stays high and never reports a press.
+  - `gpio` is the previous GPIO 4 polling path, for boards where that line is the case button.
+- The add-on is allowed to open `/dev/input/event0`-`event15` and the pwr_button by-path device. Supervisor skips device paths that are not present, so other hardware still starts.
+- If the selected source cannot be opened, the log prints a warning that names `button_source` and the other value to try. It does not silently switch sources.
+
+### Fixed
+- Case-button gestures on Argon ONE V5 / HAOS. Single press, double press (second click within 0.5s), long press (about 0.6s), and the 10s/15s power holds are recognised from `pwr_button` key events. The same gesture rules run for both sources, including wake-on-press when `screen_off_until_button` is enabled.
+- A second click can now increment the press count. The previous 0.3s wait slept without reading the button, so a double press could not select the previous screen.
+
+### Notes
+- The power key is not exclusively grabbed (`EVIOCGRAB` is not used), so systemd-logind still sees it. On HAOS a short press is ignored. A hold of about 5 seconds is `HandlePowerKeyLongPress=poweroff` and will power off the host before this add-on's 10s/15s prompts. Set that host option to `ignore` to use the on-screen reboot and shutdown holds.
+
+## [1.17.0] - 2026-11-01
+
+### Added
+- **Screen off until button** - new `screen_off_until_button` option (default `false`). When enabled, the OLED boots dark and stays off at the hardware level (SSD1306 display-off via luma `hide()` / `show()`, so there is no residual glow) until the case button is pressed. After the last button interaction the panel turns off again once `idle_dim_timeout` seconds have passed.
+- **Idle dim timeout** - new `idle_dim_timeout` option (default `60`, range 5-3600 seconds). Used only when `screen_off_until_button` is enabled.
+- Button gestures are unchanged. The press that wakes a dark panel is still that same press: single press goes to the next screen, double press to the previous screen, a long press jumps to the first screen, and a 10s / 15s hold still opens reboot / shutdown confirmation. Any press restarts the idle timer.
+- Reboot and shutdown prompts (including the 5-second cancel countdown) switch the panel on before drawing, so a hold that starts while the display is dark still shows the confirmation. Cancelling the prompt leaves the panel awake and restarts the idle timer.
+- The startup credits splash is skipped while the panel is set to boot dark, so it does not light the screen. The button monitor keeps running the whole time the panel is off.
+
 ## [1.16.2] - 2025-12-01
 
 ### Changed
